@@ -261,8 +261,11 @@ async function getConstructorCareerStats(constructorId: number): Promise<Constru
       SELECT COUNT(*)::bigint as championships
       FROM f1_seasons fs
       JOIN LATERAL (
-        SELECT ds.constructor_id
+        SELECT res.constructor_id
         FROM f1_driver_standings ds
+        JOIN f1_races dr ON dr.id = ds.race_id
+        JOIN f1_sessions sess ON sess.race_id = dr.id AND sess.session_type = 'R'
+        JOIN f1_results res ON res.session_id = sess.id AND res.driver_id = ds.driver_id
         WHERE ds.season_year = fs.year
           AND ds.driver_id = fs.champion_driver_id
         ORDER BY ds.round DESC
