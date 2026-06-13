@@ -24,22 +24,30 @@ function localeUrl(path: string, locale: (typeof locales)[number]): string {
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const now = new Date();
 
-  const [drivers, constructors, seasons] = await Promise.all([
-    prisma.f1_drivers.findMany({
-      where: { is_active: true },
-      select: { driver_ref: true },
-    }),
-    prisma.f1_constructors.findMany({
-      where: { is_active: true },
-      select: { constructor_ref: true },
-    }),
-    prisma.f1_seasons.findMany({
-      where: { year: { gte: 1950 } },
-      select: { year: true },
-      orderBy: { year: "desc" },
-      take: 80,
-    }),
-  ]);
+  let drivers: { driver_ref: string }[] = [];
+  let constructors: { constructor_ref: string }[] = [];
+  let seasons: { year: number }[] = [];
+
+  try {
+    [drivers, constructors, seasons] = await Promise.all([
+      prisma.f1_drivers.findMany({
+        where: { is_active: true },
+        select: { driver_ref: true },
+      }),
+      prisma.f1_constructors.findMany({
+        where: { is_active: true },
+        select: { constructor_ref: true },
+      }),
+      prisma.f1_seasons.findMany({
+        where: { year: { gte: 1950 } },
+        select: { year: true },
+        orderBy: { year: "desc" },
+        take: 80,
+      }),
+    ]);
+  } catch (error) {
+    console.error("sitemap: database unavailable, emitting static paths only", error);
+  }
 
   const entries: MetadataRoute.Sitemap = [];
 

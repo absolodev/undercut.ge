@@ -52,7 +52,8 @@ if [[ "$SKIP_BUILD" == false ]]; then
   echo "==> Generating Prisma client..."
   env -u NODE_ENV pnpm --filter @pitwall/db exec prisma generate
 
-  echo "==> Building web app..."
+  echo "==> Building web app (clean .next, webpack)..."
+  rm -rf apps/web/.next
   NODE_ENV=production pnpm build --filter=web
 fi
 
