@@ -6,6 +6,12 @@
     "constructors": "Constructors",
     "telemetry": "Telemetry",
     "liveConsole": "LIVE CONSOLE",
+    "seasonSelector": "SEASON",
+    "currentSeasonMark": "(current)",
+    "selectSeason": "Select F1 season",
+    "openMenu": "Open menu",
+    "closeMenu": "Close menu",
+    "homeAria": "UnderCut home",
     "language": "Language",
     "locale": {
       "en": "EN",

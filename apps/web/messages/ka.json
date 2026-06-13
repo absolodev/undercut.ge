@@ -6,6 +6,12 @@
     "constructors": "კონსტრუქტორები",
     "telemetry": "ტელემეტრია",
     "liveConsole": "LIVE კონსოლი",
+    "seasonSelector": "სეზონი",
+    "currentSeasonMark": "(მიმდინარე)",
+    "selectSeason": "აირჩიეთ F1 სეზონი",
+    "openMenu": "მენიუს გახსნა",
+    "closeMenu": "მენიუს დახურვა",
+    "homeAria": "UnderCut მთავარი",
     "language": "ენა",
     "locale": {
       "en": "EN",

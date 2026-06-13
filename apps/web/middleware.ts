@@ -12,10 +12,11 @@ export default function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   if (pathname === "/") {
-    const country = request.headers.get("x-vercel-ip-country");
+    const cfIpCountry = request.headers.get("cf-ipcountry");
+    const vercelIpCountry = request.headers.get("x-vercel-ip-country");
     const acceptLanguage = request.headers.get("accept-language");
     const cookieLocale = request.cookies.get("NEXT_LOCALE")?.value;
-    const locale = detectLocaleFromHeaders(cookieLocale, country, acceptLanguage);
+    const locale = detectLocaleFromHeaders(cfIpCountry, vercelIpCountry, acceptLanguage, cookieLocale);
     const url = request.nextUrl.clone();
     url.pathname = `/${locale}`;
     return NextResponse.redirect(url);

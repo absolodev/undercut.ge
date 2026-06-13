@@ -6,6 +6,12 @@
     "constructors": "Constructores",
     "telemetry": "Telemetría",
     "liveConsole": "CONSOLA EN VIVO",
+    "seasonSelector": "TEMPORADA",
+    "currentSeasonMark": "(actual)",
+    "selectSeason": "Seleccionar temporada de F1",
+    "openMenu": "Abrir menú",
+    "closeMenu": "Cerrar menú",
+    "homeAria": "Inicio de UnderCut",
     "language": "Idioma",
     "locale": {
       "en": "EN",

@@ -47,7 +47,7 @@ export function SiteNav({ variant = "default" }: { variant?: "default" | "compac
       <Link
         href="/"
         className="font-display font-bold text-xl text-[#E10600] hover:text-[#ff1a1a] transition-colors shrink-0"
-        aria-label="UnderCut home"
+        aria-label={t("homeAria")}
       >
         UNDERCUT
       </Link>
@@ -82,7 +82,7 @@ export function SiteNav({ variant = "default" }: { variant?: "default" | "compac
       <button
         type="button"
         className="md:hidden p-2 min-h-[44px] min-w-[44px] flex items-center justify-center text-white/70 hover:text-white"
-        aria-label={mobileOpen ? "Close menu" : "Open menu"}
+        aria-label={mobileOpen ? t("closeMenu") : t("openMenu")}
         aria-expanded={mobileOpen}
         onClick={() => setMobileOpen((o) => !o)}
       >

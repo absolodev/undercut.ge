@@ -7,9 +7,10 @@ export default async function RootPage() {
   const headerStore = await headers();
   const cookieLocale = headerStore.get("cookie")?.match(/NEXT_LOCALE=([^;]+)/)?.[1];
   const locale = detectLocaleFromHeaders(
-    cookieLocale,
+    headerStore.get("cf-ipcountry"),
     headerStore.get("x-vercel-ip-country"),
-    headerStore.get("accept-language")
+    headerStore.get("accept-language"),
+    cookieLocale
   );
   redirect(`/${locale ?? defaultLocale}`);
 }
