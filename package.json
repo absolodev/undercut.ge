@@ -1,0 +1,35 @@
+{
+  "name": "pitwall",
+  "private": true,
+  "packageManager": "pnpm@9.15.0",
+  "scripts": {
+    "dev": "turbo dev --filter=!@pitwall/desktop --filter=!mobile --filter=!ingestion",
+    "build": "turbo build",
+    "lint": "turbo lint",
+    "typecheck": "turbo typecheck",
+    "test": "vitest run",
+    "db:up": "docker compose -f infra/docker-compose.yml up -d",
+    "db:down": "docker compose -f infra/docker-compose.yml down",
+    "db:generate": "pnpm --filter @pitwall/db db:generate",
+    "db:push": "pnpm --filter @pitwall/db db:push",
+    "db:studio": "pnpm --filter @pitwall/db db:studio",
+    "db:seed": "pnpm --filter @pitwall/db db:seed",
+    "sync:latest": "pnpm --filter @pitwall/db db:sync-latest",
+    "sync:season": "pnpm --filter @pitwall/db db:sync-season"
+  },
+  "pnpm": {
+    "overrides": {
+      "react": "19.2.4",
+      "react-dom": "19.2.4"
+    }
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@types/node": "^20",
+    "jsdom": "^29.1.1",
+    "turbo": "^2.9.18",
+    "typescript": "^5",
+    "vitest": "^4.1.8"
+  }
+}

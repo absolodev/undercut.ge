@@ -1,0 +1,114 @@
+import type { Metadata } from "next";
+import { Orbitron, JetBrains_Mono, Geist, Exo_2, Noto_Sans_Georgian } from "next/font/google";
+import { NextIntlClientProvider } from "next-intl";
+import { getLocale, getMessages } from "next-intl/server";
+import "./globals.css";
+import { CommandPalette } from "@/components/pro-tools/command-palette";
+import { CookieConsent } from "@/components/layout/cookie-consent";
+import { DataDisclaimer } from "@/components/layout/data-disclaimer";
+import { JsonLd } from "@/components/layout/json-ld";
+import { cn } from "@/lib/utils";
+import { defaultMetadata, getSiteUrl } from "@/lib/seo";
+import type { Locale } from "@/i18n/config";
+
+const orbitron = Orbitron({
+  variable: "--font-display",
+  subsets: ["latin"],
+});
+
+const exo2 = Exo_2({
+  variable: "--font-display-es",
+  subsets: ["latin"],
+});
+
+const notoGeorgian = Noto_Sans_Georgian({
+  variable: "--font-display-ka",
+  subsets: ["georgian", "latin"],
+});
+
+const jetbrainsMono = JetBrains_Mono({
+  variable: "--font-mono",
+  subsets: ["latin"],
+});
+
+const geist = Geist({ subsets: ["latin"], variable: "--font-sans" });
+
+export const metadata: Metadata = {
+  ...defaultMetadata,
+  metadataBase: new URL(getSiteUrl()),
+};
+
+const organizationJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  name: "UnderCut",
+  url: getSiteUrl(),
+  description: "Formula 1 companion app with live timing, telemetry, and historical data.",
+};
+
+const websiteJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  name: "UnderCut",
+  url: getSiteUrl(),
+  potentialAction: {
+    "@type": "SearchAction",
+    target: `${getSiteUrl()}/f1/drivers?q={search_term_string}`,
+    "query-input": "required name=search_term_string",
+  },
+};
+
+function localeFontClass(locale: Locale): string {
+  if (locale === "ka") return notoGeorgian.variable;
+  if (locale === "es") return exo2.variable;
+  return orbitron.variable;
+}
+
+export default async function RootLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
+  const locale = (await getLocale()) as Locale;
+  const messages = await getMessages();
+
+  return (
+    <html
+      lang={locale}
+      className={cn(
+        "h-full",
+        "antialiased",
+        "dark",
+        orbitron.variable,
+        exo2.variable,
+        notoGeorgian.variable,
+        jetbrainsMono.variable,
+        geist.variable,
+        locale === "ka" ? "font-display-ka" : locale === "es" ? "font-display-es" : "font-display-en"
+      )}
+    >
+      <body
+        suppressHydrationWarning
+        className={cn(
+          "min-h-full flex flex-col font-sans bg-bg-primary text-text-primary",
+          localeFontClass(locale)
+        )}
+        style={
+          locale === "ka"
+            ? { fontFamily: "var(--font-display-ka), var(--font-sans), sans-serif" }
+            : locale === "es"
+              ? { fontFamily: "var(--font-display-es), var(--font-sans), sans-serif" }
+              : undefined
+        }
+      >
+        <NextIntlClientProvider messages={messages}>
+          <JsonLd data={[organizationJsonLd, websiteJsonLd]} />
+          {children}
+          <CommandPalette />
+          <CookieConsent />
+          <DataDisclaimer />
+        </NextIntlClientProvider>
+      </body>
+    </html>
+  );
+}

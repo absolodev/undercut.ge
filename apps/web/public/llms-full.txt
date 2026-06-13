@@ -1,0 +1,70 @@
+# UnderCut — Full LLM Site Guide
+
+## About
+
+UnderCut (https://undercut.ge) is an unofficial Formula 1 companion application.
+It aggregates publicly available F1 data: race results, standings, driver/constructor
+profiles, and optional live timing during race weekends.
+
+## Locales
+
+All public pages are available under locale prefixes:
+
+| Locale | Prefix | Example home URL         |
+|--------|--------|--------------------------|
+| en     | /en/   | https://undercut.ge/en/  |
+| es     | /es/   | https://undercut.ge/es/  |
+| ka     | /ka/   | https://undercut.ge/ka/  |
+
+Hreflang alternates are set in page metadata for en, es, and ka.
+
+## URL patterns
+
+```
+/{locale}/
+/{locale}/live
+/{locale}/f1/seasons
+/{locale}/f1/seasons/{year}
+/{locale}/f1/seasons/{year}/{round}
+/{locale}/f1/drivers
+/{locale}/f1/drivers/{driverRef}
+/{locale}/f1/constructors
+/{locale}/f1/constructors/{constructorRef}
+/{locale}/f1/compare
+/{locale}/f1/circuits
+/{locale}/f1/circuits/{circuitRef}
+/{locale}/legal/privacy
+/{locale}/legal/terms
+/{locale}/legal/cookies
+```
+
+`driverRef` and `constructorRef` are lowercase slugs (e.g. `norris`, `mclaren`).
+
+## JSON-LD structured data
+
+- Home: `SportsEvent` for next upcoming race
+- Driver profiles: `Person`
+- Constructor profiles: `SportsTeam`
+- Site-wide: `Organization`, `WebSite` with `SearchAction`
+
+## Database entities (conceptual)
+
+- Seasons, races, circuits, sessions (FP/Q/S/R)
+- Results, qualifying results, standings (driver & constructor)
+- Drivers, constructors, race entries
+- Season champions (WDC/WCC)
+
+## Environment
+
+- `CURRENT_SEASON` — active F1 year (e.g. 2026)
+- `DATABASE_URL` — PostgreSQL connection
+- `NEXT_PUBLIC_SITE_URL` — canonical site URL for SEO (`https://undercut.ge`)
+
+## Sync
+
+Historical and current-season data is synced from Jolpica/Ergast-compatible APIs
+via `pnpm sync:latest` and `pnpm sync:season` in the monorepo root.
+
+## Disclaimer
+
+Data may be incomplete or delayed. UnderCut is not affiliated with Formula 1.

@@ -1,0 +1,30 @@
+{
+  "name": "ingestion",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "tsx watch src/index.ts",
+    "typecheck": "tsc --noEmit",
+    "build": "tsc"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "bullmq": "^5.78.0",
+    "ioredis": "^5.11.1",
+    "node-fetch": "3",
+    "p-queue": "^9.3.0",
+    "pino": "^10.3.1",
+    "@pitwall/types": "workspace:*",
+    "@pitwall/db": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "tsx": "^4.10.0",
+    "typescript": "^5"
+  },
+  "private": true
+}

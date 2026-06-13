@@ -1,0 +1,74 @@
+[
+  {
+    "constructor_ref": "red_bull",
+    "name": "Red Bull Racing",
+    "color_primary": "#3671C6",
+    "logo_url": "https://media.formula1.com/image/upload/f_auto/q_auto/content/dam/fom-website/2018-redesign-assets/Team%20logos/red%20bull%20racing"
+  },
+  {
+    "constructor_ref": "ferrari",
+    "name": "Ferrari",
+    "color_primary": "#E80020",
+    "logo_url": "https://media.formula1.com/image/upload/f_auto/q_auto/content/dam/fom-website/2018-redesign-assets/Team%20logos/ferrari"
+  },
+  {
+    "constructor_ref": "mercedes",
+    "name": "Mercedes",
+    "color_primary": "#27F4D2",
+    "logo_url": "https://media.formula1.com/image/upload/f_auto/q_auto/content/dam/fom-website/2018-redesign-assets/Team%20logos/mercedes"
+  },
+  {
+    "constructor_ref": "mclaren",
+    "name": "McLaren",
+    "color_primary": "#FF8000",
+    "logo_url": "https://media.formula1.com/image/upload/f_auto/q_auto/content/dam/fom-website/2018-redesign-assets/Team%20logos/mclaren"
+  },
+  {
+    "constructor_ref": "aston_martin",
+    "name": "Aston Martin",
+    "color_primary": "#229971",
+    "logo_url": "https://media.formula1.com/image/upload/f_auto/q_auto/content/dam/fom-website/2018-redesign-assets/Team%20logos/aston%20martin"
+  },
+  {
+    "constructor_ref": "alpine",
+    "name": "Alpine",
+    "color_primary": "#0093CC",
+    "logo_url": "https://media.formula1.com/image/upload/f_auto/q_auto/content/dam/fom-website/2018-redesign-assets/Team%20logos/alpine"
+  },
+  {
+    "constructor_ref": "williams",
+    "name": "Williams",
+    "color_primary": "#64C4FF",
+    "logo_url": "https://media.formula1.com/image/upload/f_auto/q_auto/content/dam/fom-website/2018-redesign-assets/Team%20logos/williams"
+  },
+  {
+    "constructor_ref": "rb",
+    "name": "Racing Bulls",
+    "color_primary": "#6692FF",
+    "logo_url": "https://media.formula1.com/image/upload/f_auto/q_auto/content/dam/fom-website/2018-redesign-assets/Team%20logos/rb"
+  },
+  {
+    "constructor_ref": "sauber",
+    "name": "Kick Sauber",
+    "color_primary": "#52E252",
+    "logo_url": "https://media.formula1.com/image/upload/f_auto/q_auto/content/dam/fom-website/2018-redesign-assets/Team%20logos/kick%20sauber"
+  },
+  {
+    "constructor_ref": "haas",
+    "name": "Haas F1 Team",
+    "color_primary": "#B6BABD",
+    "logo_url": "https://media.formula1.com/image/upload/f_auto/q_auto/content/dam/fom-website/2018-redesign-assets/Team%20logos/haas"
+  },
+  {
+    "constructor_ref": "alphatauri",
+    "name": "AlphaTauri",
+    "color_primary": "#6692FF",
+    "logo_url": "https://media.formula1.com/image/upload/f_auto/q_auto/content/dam/fom-website/2018-redesign-assets/Team%20logos/alphatauri"
+  },
+  {
+    "constructor_ref": "renault",
+    "name": "Renault",
+    "color_primary": "#FFF500",
+    "logo_url": "https://media.formula1.com/image/upload/f_auto/q_auto/content/dam/fom-website/2018-redesign-assets/Team%20logos/renault"
+  }
+]

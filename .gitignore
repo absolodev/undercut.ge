@@ -1,0 +1,37 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Environment
+.env
+.env.*
+!.env.example
+apps/web/.env.local
+packages/db/.env
+
+# Build outputs
+.next/
+out/
+dist/
+.turbo/
+*.tsbuildinfo
+
+# Database backups (restore from server, do not commit)
+packages/db/backups/
+*.sql
+*.sql.gz
+
+# Desktop / mobile build artifacts
+apps/desktop/release/
+apps/desktop/dist/
+apps/mobile/.expo/
+apps/mobile/dist/
+
+# OS / editor
+.DS_Store
+*.log
+.idea/
+.vscode/
+
+# Test / coverage
+coverage/

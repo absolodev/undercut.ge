@@ -1,0 +1,389 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── 1. Reference Data ──────────────────────────────────────
+
+model f1_drivers {
+  id               Int       @id @default(autoincrement())
+  driver_ref       String    @unique
+  number           Int?
+  code             String?   @db.VarChar(3)
+  broadcast_name   String
+  first_name       String
+  last_name        String
+  full_name        String
+  date_of_birth    DateTime? @db.Date
+  nationality      String?
+  country_code     String?   @db.VarChar(3)
+  headshot_url     String?
+  url              String?
+  is_active        Boolean   @default(true)
+
+  results               f1_results[]
+  qualifying_results    f1_qualifying_results[]
+  laps                  f1_laps[]
+  pit_stops             f1_pit_stops[]
+  stints                f1_stints[]
+  penalties             f1_penalties[]
+  race_entries          f1_race_entries[]
+  driver_standings      f1_driver_standings[]
+  championships_won     f1_seasons[]            @relation("ChampionDriver")
+  telemetry             f1_telemetry[]
+}
+
+model f1_constructors {
+  id               Int       @id @default(autoincrement())
+  constructor_ref  String    @unique
+  name             String
+  full_name        String?
+  nationality      String?
+  color_primary    String    @default("#FFFFFF")
+  color_secondary  String?
+  logo_url         String?
+  url              String?
+  is_active        Boolean   @default(true)
+  predecessor_id   Int?      // Self-referential for team history
+
+  predecessor           f1_constructors?        @relation("TeamHistory", fields: [predecessor_id], references: [id])
+  successors            f1_constructors[]       @relation("TeamHistory")
+  results               f1_results[]
+  qualifying_results    f1_qualifying_results[]
+  race_entries          f1_race_entries[]
+  constructor_standings f1_constructor_standings[]
+  championships_won     f1_seasons[]            @relation("ChampionConstructor")
+}
+
+model f1_circuits {
+  id               Int       @id @default(autoincrement())
+  circuit_ref      String    @unique
+  name             String
+  location         String?
+  country          String?
+  country_code     String?   @db.VarChar(3)
+  lat              Float?
+  lng              Float?
+  alt              Int?
+  url              String?
+  length_meters    Int?
+  turns            Int?
+  pit_loss_time    Float?
+
+  // PixiJS Track Map Data
+  map_svg_path     String?   @db.Text
+  pit_lane_path    String?   @db.Text
+  transform_data   Json?     // { tx, ty, sx, sy, rot }
+  drs_zones        Json?     // [{ detection_path, activation_path }]
+  corner_data      Json?     // [{ num, x, y, name }]
+  elevation_data   Json?     // [{ distance_m, elevation_m }]
+
+  races            f1_races[]
+}
+
+// ─── 2. Calendar & Sessions ─────────────────────────────────
+
+model f1_seasons {
+  year                     Int     @id
+  url                      String?
+  total_races              Int?
+  champion_driver_id       Int?
+  champion_constructor_id  Int?
+
+  champion_driver          f1_drivers?      @relation("ChampionDriver", fields: [champion_driver_id], references: [id])
+  champion_constructor     f1_constructors? @relation("ChampionConstructor", fields: [champion_constructor_id], references: [id])
+  races                    f1_races[]
+}
+
+model f1_races {
+  id               Int       @id @default(autoincrement())
+  season_year      Int
+  round            Int
+  circuit_id       Int
+  race_name        String
+  race_date        DateTime  @db.Date
+  race_time        DateTime? @db.Time
+  url              String?
+  total_laps       Int?
+
+  season           f1_seasons             @relation(fields: [season_year], references: [year])
+  circuit          f1_circuits            @relation(fields: [circuit_id], references: [id])
+  sessions         f1_sessions[]
+  entries          f1_race_entries[]
+  driver_standings f1_driver_standings[]
+  constructor_standings f1_constructor_standings[]
+
+  @@unique([season_year, round])
+}
+
+model f1_sessions {
+  id               Int       @id @default(autoincrement())
+  race_id          Int
+  session_type     String    @db.VarChar(3) // FP1, FP2, FP3, Q, SQ, S, R
+  session_key      Int?      @unique // OpenF1 session_key
+  session_name     String?
+  date_start       DateTime
+  date_end         DateTime?
+
+  race             f1_races               @relation(fields: [race_id], references: [id])
+  results          f1_results[]
+  qualifying_results f1_qualifying_results[]
+  laps             f1_laps[]
+  pit_stops        f1_pit_stops[]
+  stints           f1_stints[]
+  penalties        f1_penalties[]
+  incidents        f1_race_incidents[]
+  weather_snapshots f1_weather_snapshots[]
+  race_control_messages f1_race_control_messages[]
+  telemetry        f1_telemetry[]
+
+  @@unique([race_id, session_type])
+}
+
+// ─── 3. Event Entities ──────────────────────────────────────
+
+model f1_race_entries {
+  id               Int       @id @default(autoincrement())
+  race_id          Int
+  driver_id        Int
+  constructor_id   Int
+  car_number       Int
+
+  race             f1_races        @relation(fields: [race_id], references: [id])
+  driver           f1_drivers      @relation(fields: [driver_id], references: [id])
+  constructor      f1_constructors @relation(fields: [constructor_id], references: [id])
+
+  @@unique([race_id, driver_id])
+}
+
+// ─── 4. Results ─────────────────────────────────────────────
+
+model f1_results {
+  id               Int       @id @default(autoincrement())
+  session_id       Int
+  driver_id        Int
+  constructor_id   Int
+  number           Int?
+  grid_position    Int?
+  finish_position  Int?
+  position_text    String?   // "1", "R", "D", "W"
+  points           Float     @default(0)
+  laps             Int       @default(0)
+  time_ms          Int?
+  time_str         String?
+  status           String?   // "Finished", "+1 Lap", "Collision"
+  fastest_lap      Boolean   @default(false)
+  fastest_lap_time_ms Int?
+  fastest_lap_speed Float?
+  classification   String?   // "Classified", "DNF", "DSQ"
+
+  session          f1_sessions     @relation(fields: [session_id], references: [id])
+  driver           f1_drivers      @relation(fields: [driver_id], references: [id])
+  constructor      f1_constructors @relation(fields: [constructor_id], references: [id])
+
+  @@unique([session_id, driver_id])
+}
+
+model f1_qualifying_results {
+  id               Int       @id @default(autoincrement())
+  session_id       Int
+  driver_id        Int
+  constructor_id   Int
+  number           Int?
+  position         Int?
+  q1_time_ms       Int?
+  q2_time_ms       Int?
+  q3_time_ms       Int?
+
+  session          f1_sessions     @relation(fields: [session_id], references: [id])
+  driver           f1_drivers      @relation(fields: [driver_id], references: [id])
+  constructor      f1_constructors @relation(fields: [constructor_id], references: [id])
+
+  @@unique([session_id, driver_id])
+}
+
+// ─── 5. Race Events (Laps, Pits, Stints, Penalties) ─────────
+
+model f1_laps {
+  id               Int       @id @default(autoincrement())
+  session_id       Int
+  driver_id        Int
+  lap_number       Int
+  position         Int?
+  lap_time_ms      Int?
+  sector_1_ms      Int?
+  sector_2_ms      Int?
+  sector_3_ms      Int?
+  is_pit_out_lap   Boolean   @default(false)
+  is_pit_in_lap    Boolean   @default(false)
+  is_personal_best Boolean   @default(false)
+  is_overall_best  Boolean   @default(false)
+
+  session          f1_sessions @relation(fields: [session_id], references: [id])
+  driver           f1_drivers  @relation(fields: [driver_id], references: [id])
+
+  @@unique([session_id, driver_id, lap_number])
+}
+
+model f1_pit_stops {
+  id               Int       @id @default(autoincrement())
+  session_id       Int
+  driver_id        Int
+  stop_number      Int
+  lap_number       Int
+  time_of_day      DateTime? @db.Time
+  duration_ms      Int
+  pit_lane_time_ms Int?
+
+  session          f1_sessions @relation(fields: [session_id], references: [id])
+  driver           f1_drivers  @relation(fields: [driver_id], references: [id])
+
+  @@unique([session_id, driver_id, stop_number])
+}
+
+model f1_stints {
+  id               Int       @id @default(autoincrement())
+  session_id       Int
+  driver_id        Int
+  stint_number     Int
+  compound         String    // SOFT, MEDIUM, HARD, INTERMEDIATE, WET
+  tyre_age_at_start Int      @default(0)
+  start_lap        Int
+  end_lap          Int?
+  total_laps       Int?
+
+  session          f1_sessions @relation(fields: [session_id], references: [id])
+  driver           f1_drivers  @relation(fields: [driver_id], references: [id])
+
+  @@unique([session_id, driver_id, stint_number])
+}
+
+model f1_penalties {
+  id               Int       @id @default(autoincrement())
+  session_id       Int
+  driver_id        Int
+  lap_number       Int?
+  penalty_type     String    // 5_SEC, DRIVE_THROUGH, etc.
+  reason           String
+  time_added_sec   Int?
+  grid_places      Int?
+  regulation_ref   String?
+  is_served        Boolean   @default(false)
+
+  session          f1_sessions @relation(fields: [session_id], references: [id])
+  driver           f1_drivers  @relation(fields: [driver_id], references: [id])
+}
+
+model f1_race_incidents {
+  id               Int       @id @default(autoincrement())
+  session_id       Int
+  lap_number       Int?
+  time_of_day      DateTime? @db.Time
+  incident_type    String    // COLLISION, SPIN, MECHANICAL, TRACK_LIMITS
+  description      String
+  driver_ids       Int[]     // Array of involved drivers
+  sector           Int?
+
+  session          f1_sessions @relation(fields: [session_id], references: [id])
+}
+
+// ─── 6. Race Control & Weather ──────────────────────────────
+
+model f1_race_control_messages {
+  id               Int       @id @default(autoincrement())
+  session_id       Int
+  lap_number       Int?
+  occurred_at      DateTime
+  category         String    // Flag, SafetyCar, Penalty, etc.
+  flag_status      String?   // GREEN, YELLOW, RED, etc.
+  message          String
+  driver_id        Int?      // If message targets specific driver
+  sector           Int?
+
+  session          f1_sessions @relation(fields: [session_id], references: [id])
+}
+
+model f1_weather_snapshots {
+  id               Int       @id @default(autoincrement())
+  session_id       Int
+  recorded_at      DateTime
+  air_temp         Float?
+  track_temp       Float?
+  humidity         Float?
+  pressure         Float?
+  wind_speed       Float?
+  wind_direction   Int?
+  rainfall         Boolean   @default(false)
+
+  session          f1_sessions @relation(fields: [session_id], references: [id])
+
+  @@unique([session_id, recorded_at])
+}
+
+// ─── 7. Standings ───────────────────────────────────────────
+
+model f1_driver_standings {
+  id               Int       @id @default(autoincrement())
+  race_id          Int
+  driver_id        Int
+  season_year      Int
+  round            Int
+  points           Float
+  position         Int
+  wins             Int
+
+  race             f1_races   @relation(fields: [race_id], references: [id])
+  driver           f1_drivers @relation(fields: [driver_id], references: [id])
+
+  @@unique([race_id, driver_id])
+}
+
+model f1_constructor_standings {
+  id               Int       @id @default(autoincrement())
+  race_id          Int
+  constructor_id   Int
+  season_year      Int
+  round            Int
+  points           Float
+  position         Int
+  wins             Int
+
+  race             f1_races        @relation(fields: [race_id], references: [id])
+  constructor      f1_constructors @relation(fields: [constructor_id], references: [id])
+
+  @@unique([race_id, constructor_id])
+}
+
+// ─── 8. Telemetry (TimescaleDB target) ──────────────────────
+
+model f1_telemetry {
+  id               BigInt    @id @default(autoincrement())
+  session_id       Int
+  driver_id        Int
+  timestamp        DateTime  @db.Timestamptz // Time index for TimescaleDB
+  lap_number       Int?
+  distance_m       Float?
+  
+  // Position
+  x                Float?
+  y                Float?
+  z                Float?
+  
+  // Car State
+  speed            Int?
+  rpm              Int?
+  gear             Int?
+  throttle         Int?
+  brake            Boolean?
+  drs              Int?      // 0=off, 1=available, 2=active
+
+  session          f1_sessions @relation(fields: [session_id], references: [id])
+  driver           f1_drivers  @relation(fields: [driver_id], references: [id])
+
+  @@index([session_id, driver_id, timestamp])
+  @@index([timestamp])
+}

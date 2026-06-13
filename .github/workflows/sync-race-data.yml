@@ -1,0 +1,39 @@
+name: Sync F1 race data
+
+# Incremental season sync only — never runs db:seed or full historical import.
+# Requires DATABASE_URL secret pointing at production PostgreSQL.
+
+on:
+  schedule:
+    # Monday 04:00 UTC — after most Sunday races
+    - cron: "0 4 * * 1"
+  workflow_dispatch:
+    inputs:
+      season:
+        description: "Season year to sync (default: current season)"
+        required: false
+        default: "2026"
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Incremental sync (sync:latest)
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          CURRENT_SEASON: ${{ github.event.inputs.season || '2026' }}
+        run: pnpm sync:latest

@@ -1,0 +1,48 @@
+# UnderCut — Formula 1 Data Companion
+
+> Unofficial F1 statistics, live timing, and historical archives.
+> Site: https://undercut.ge
+
+## Languages
+
+- English: /en/
+- Spanish: /es/
+- Georgian: /ka/
+
+## Main sections
+
+- `/en/` — Home dashboard with championship standings and season stats
+- `/en/live` — Live race console (timing, weather, positions during sessions)
+- `/en/f1/seasons` — Season archive (1950–present)
+- `/en/f1/seasons/{year}` — Race calendar and results for a season
+- `/en/f1/seasons/{year}/{round}` — Individual grand prix results and sessions
+- `/en/f1/drivers` — Active and historical driver listings
+- `/en/f1/drivers/{driverRef}` — Driver career profile (wins, poles, championships)
+- `/en/f1/constructors` — Constructor/team listings
+- `/en/f1/constructors/{constructorRef}` — Team profile (WCC/WDC titles, drivers, season history)
+- `/en/f1/compare` — Telemetry comparison (beta)
+- `/en/f1/circuits` — Circuit reference and track maps
+
+## Data available
+
+- Championship standings (drivers and constructors), updated after each classified race
+- Race results, qualifying, sprint results (where applicable)
+- Career statistics: wins, podiums, poles, points, championships
+- Historical season data from 1950 onward (coverage varies by season)
+- Live session data during race weekends (positions, lap count, weather)
+
+## Public API endpoints
+
+- `GET /api/live/status` — Current live/weekend/off-season mode
+- `GET /api/live/weather` — Track weather for active session
+- `GET /api/telemetry/sessions` — Available telemetry sessions
+- `GET /api/telemetry/compare` — Lap telemetry comparison data
+- `GET /api/circuits/{ref}/map` — Circuit SVG track map
+
+## Sitemap
+
+https://undercut.ge/sitemap.xml
+
+## Full documentation
+
+See /llms-full.txt for extended page inventory and data schema notes.

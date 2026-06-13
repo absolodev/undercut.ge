@@ -1,0 +1,32 @@
+{
+  "2026": {
+    "totalRounds": 22,
+    "note": "Bahrain and Saudi Arabian Grands Prix cancelled for 2026; calendar reduced from 24 to 22 races.",
+    "races": [
+      { "round": 1, "name": "Australian Grand Prix", "date": "2026-03-08", "circuitRef": "albert_park", "status": "scheduled" },
+      { "round": 2, "name": "Chinese Grand Prix", "date": "2026-03-15", "circuitRef": "shanghai", "status": "scheduled" },
+      { "round": 3, "name": "Japanese Grand Prix", "date": "2026-03-29", "circuitRef": "suzuka", "status": "scheduled" },
+      { "round": 4, "name": "Bahrain Grand Prix", "date": "2026-04-12", "circuitRef": "bahrain", "status": "cancelled" },
+      { "round": 5, "name": "Saudi Arabian Grand Prix", "date": "2026-04-19", "circuitRef": "jeddah", "status": "cancelled" },
+      { "round": 6, "name": "Miami Grand Prix", "date": "2026-05-03", "circuitRef": "miami", "status": "scheduled" },
+      { "round": 7, "name": "Canadian Grand Prix", "date": "2026-05-24", "circuitRef": "villeneuve", "status": "scheduled" },
+      { "round": 8, "name": "Monaco Grand Prix", "date": "2026-06-07", "circuitRef": "monaco", "status": "scheduled" },
+      { "round": 9, "name": "Barcelona-Catalunya Grand Prix", "date": "2026-06-14", "circuitRef": "catalunya", "status": "scheduled" },
+      { "round": 10, "name": "Austrian Grand Prix", "date": "2026-06-28", "circuitRef": "red_bull_ring", "status": "scheduled" },
+      { "round": 11, "name": "British Grand Prix", "date": "2026-07-05", "circuitRef": "silverstone", "status": "scheduled" },
+      { "round": 12, "name": "Belgian Grand Prix", "date": "2026-07-19", "circuitRef": "spa", "status": "scheduled" },
+      { "round": 13, "name": "Hungarian Grand Prix", "date": "2026-07-26", "circuitRef": "hungaroring", "status": "scheduled" },
+      { "round": 14, "name": "Dutch Grand Prix", "date": "2026-08-23", "circuitRef": "zandvoort", "status": "scheduled" },
+      { "round": 15, "name": "Italian Grand Prix", "date": "2026-09-06", "circuitRef": "monza", "status": "scheduled" },
+      { "round": 16, "name": "Spanish Grand Prix", "date": "2026-09-13", "circuitRef": "madring", "status": "scheduled" },
+      { "round": 17, "name": "Azerbaijan Grand Prix", "date": "2026-09-26", "circuitRef": "baku", "status": "scheduled" },
+      { "round": 18, "name": "Singapore Grand Prix", "date": "2026-10-11", "circuitRef": "marina_bay", "status": "scheduled" },
+      { "round": 19, "name": "United States Grand Prix", "date": "2026-10-25", "circuitRef": "americas", "status": "scheduled" },
+      { "round": 20, "name": "Mexico City Grand Prix", "date": "2026-11-01", "circuitRef": "rodriguez", "status": "scheduled" },
+      { "round": 21, "name": "São Paulo Grand Prix", "date": "2026-11-08", "circuitRef": "interlagos", "status": "scheduled" },
+      { "round": 22, "name": "Las Vegas Grand Prix", "date": "2026-11-21", "circuitRef": "vegas", "status": "scheduled" },
+      { "round": 23, "name": "Qatar Grand Prix", "date": "2026-11-29", "circuitRef": "losail", "status": "scheduled" },
+      { "round": 24, "name": "Abu Dhabi Grand Prix", "date": "2026-12-06", "circuitRef": "yas_marina", "status": "scheduled" }
+    ]
+  }
+}

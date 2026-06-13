@@ -1,0 +1,13 @@
+{
+  "name": "@pitwall/data",
+  "version": "0.1.0",
+  "private": true,
+  "exports": {
+    "./current/news.json": "./current/news.json",
+    "./current/constructors.json": "./current/constructors.json",
+    "./current/season.json": "./current/season.json",
+    "./track-maps/tracks.json": "./track-maps/tracks.json",
+    "./track-maps/manifest.json": "./track-maps/manifest.json",
+    "./track-maps/*": "./track-maps/*"
+  }
+}

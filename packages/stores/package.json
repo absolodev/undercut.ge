@@ -1,0 +1,24 @@
+{
+  "name": "@pitwall/stores",
+  "version": "1.0.0",
+  "description": "",
+  "main": "dist/index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "tsc",
+    "dev": "tsc -w"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "zustand": "^5.0.14",
+    "@pitwall/types": "workspace:*",
+    "@pitwall/constants": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5"
+  },
+  "private": true,
+  "types": "dist/index.d.ts"
+}
