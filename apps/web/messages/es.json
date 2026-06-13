@@ -74,6 +74,7 @@
   },
   "Footer": {
     "tagline": "Compañero no oficial de datos de F1. No afiliado a Formula 1.",
+    "description": "UnderCut es tu compañero no oficial de datos de Fórmula 1 — cronometraje en vivo durante los fines de semana de carrera, clasificaciones del campeonato actualizadas tras cada gran premio, perfiles de pilotos y constructores con estadísticas de carrera, archivos históricos de temporadas desde 1950, y herramientas de comparación de telemetría. Explora el calendario de la temporada {year}, compara compañeros de equipo cara a cara, y sigue cada punto en los campeonatos de pilotos y constructores.",
     "privacy": "Privacidad",
     "terms": "Términos",
     "cookies": "Cookies"

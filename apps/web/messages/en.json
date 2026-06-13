@@ -74,6 +74,7 @@
   },
   "Footer": {
     "tagline": "Unofficial F1 data companion. Not affiliated with Formula 1.",
+    "description": "UnderCut is your unofficial Formula 1 data companion — live timing during race weekends, championship standings updated after every grand prix, driver and constructor profiles with career statistics, historical season archives from 1950 onward, and telemetry comparison tools. Explore the {year} season calendar, compare teammates head-to-head, and follow every point in the drivers' and constructors' championships.",
     "privacy": "Privacy",
     "terms": "Terms",
     "cookies": "Cookies"

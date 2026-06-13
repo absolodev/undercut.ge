@@ -3,6 +3,7 @@ import { getTranslations, getLocale } from "next-intl/server";
 import { HomeShell } from "@/components/home/home-shell";
 import { SeasonDashboard } from "@/components/home/season-dashboard";
 import { RecordsSection } from "@/components/home/records-section";
+import { NewsSection } from "@/components/home/news-section";
 import { WeekendPreview } from "@/components/home/weekend-preview";
 import {
   getActiveWeekendRace,
@@ -157,16 +158,16 @@ export default async function HomePage() {
           constructorStandings={constructorStandings}
           recentResults={recent}
           seasonStats={seasonStats}
-          news={news}
         />
       )}
 
       {status.mode !== "weekend" && (
-        <div className="mt-10">
-          <section className="mb-8 text-sm text-white/50 leading-relaxed max-w-3xl">
+        <div className="mt-10 space-y-8">
+          <RecordsSection wins={wins} poles={poles} coverageNote={coverageNote} />
+          <section className="text-sm text-white/50 leading-relaxed max-w-3xl">
             <p>{t("seoIntro", { year: seasonYear })}</p>
           </section>
-          <RecordsSection wins={wins} poles={poles} coverageNote={coverageNote} />
+          <NewsSection news={news} />
         </div>
       )}
     </HomeShell>
