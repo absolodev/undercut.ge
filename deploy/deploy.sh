@@ -41,7 +41,7 @@ if [[ -d .git ]]; then
 fi
 
 echo "==> Installing dependencies..."
-pnpm install --frozen-lockfile
+env -u NODE_ENV CI=true pnpm install --frozen-lockfile
 
 if [[ -n "$RESTORE_DB" ]]; then
   echo "==> Restoring database from backup..."
@@ -49,8 +49,11 @@ if [[ -n "$RESTORE_DB" ]]; then
 fi
 
 if [[ "$SKIP_BUILD" == false ]]; then
+  echo "==> Generating Prisma client..."
+  env -u NODE_ENV pnpm --filter @pitwall/db exec prisma generate
+
   echo "==> Building web app..."
-  pnpm build --filter=web
+  NODE_ENV=production pnpm build --filter=web
 fi
 
 echo "==> Restarting PM2 process..."

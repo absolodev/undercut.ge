@@ -60,6 +60,6 @@ env -u NODE_ENV pnpm install --frozen-lockfile 2>/dev/null || env -u NODE_ENV pn
 env -u NODE_ENV pnpm db:push
 
 echo "==> Importing SQL dump..."
-gunzip -c "$BACKUP_FILE" | psql "$PG_URL" --set ON_ERROR_STOP=1 --quiet
+gunzip -c "$BACKUP_FILE" | sed -e "/^SET transaction_timeout/d" -e "/^SET idle_in_transaction_session_timeout/d" | psql "$PG_URL" --set ON_ERROR_STOP=1 --quiet
 
 echo "==> Restore complete."

@@ -31,7 +31,7 @@ mkdir -p "$APP_DIR/backups" "$APP_DIR/logs" "$REPO_DIR"
 chown -R "$APP_USER:$APP_USER" "$APP_DIR"
 
 echo "==> Installing PM2 for process management..."
-sudo -u "$APP_USER" npm install -g pm2
+npm install -g pm2
 
 PM2_ECOSYSTEM="${APP_DIR}/ecosystem.config.cjs"
 cat > "$PM2_ECOSYSTEM" <<'EOF'
@@ -41,7 +41,8 @@ module.exports = {
       name: "undercut-web",
       cwd: "/opt/undercut/app/apps/web",
       script: "node_modules/.bin/next",
-      args: "start",
+      args: "start -p 3000",
+      exec_mode: "fork",
       env: {
         NODE_ENV: "production",
         PORT: 3000,
