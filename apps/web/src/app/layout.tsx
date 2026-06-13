@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Orbitron, JetBrains_Mono, Geist, Exo_2, Noto_Sans_Georgian } from "next/font/google";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages } from "next-intl/server";
@@ -33,9 +33,20 @@ const jetbrainsMono = JetBrains_Mono({
 
 const geist = Geist({ subsets: ["latin"], variable: "--font-sans" });
 
+/** Matches sticky nav/header `bg-[#111]` */
+const NAV_THEME_COLOR = "#111111";
+
+export const viewport: Viewport = {
+  themeColor: NAV_THEME_COLOR,
+  colorScheme: "dark",
+};
+
 export const metadata: Metadata = {
   ...defaultMetadata,
   metadataBase: new URL(getSiteUrl()),
+  appleWebApp: {
+    statusBarStyle: "black",
+  },
 };
 
 const organizationJsonLd = {
