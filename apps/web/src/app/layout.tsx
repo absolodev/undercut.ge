@@ -45,7 +45,7 @@ export const metadata: Metadata = {
   ...defaultMetadata,
   metadataBase: new URL(getSiteUrl()),
   appleWebApp: {
-    statusBarStyle: "black",
+    statusBarStyle: "black-translucent",
   },
 };
 
@@ -98,6 +98,9 @@ export default async function RootLayout({
         locale === "ka" ? "font-display-ka" : locale === "es" ? "font-display-es" : "font-display-en"
       )}
     >
+      <head>
+        <meta name="theme-color" content={NAV_THEME_COLOR} />
+      </head>
       <body
         suppressHydrationWarning
         className={cn(
@@ -112,7 +115,7 @@ export default async function RootLayout({
               : undefined
         }
       >
-        <NextIntlClientProvider messages={messages}>
+        <NextIntlClientProvider locale={locale} messages={messages}>
           <JsonLd data={[organizationJsonLd, websiteJsonLd]} />
           {children}
           <CommandPalette />

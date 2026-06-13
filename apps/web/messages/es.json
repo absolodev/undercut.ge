@@ -44,7 +44,7 @@
     "newsChanges": "Noticias y Cambios",
     "allTimeRecords": "Récords Históricos",
     "recordsCoverageFull": "Totales históricos de todas las carreras y clasificaciones en la base de datos ({min}–{max}).",
-    "recordsCoveragePartial": "Totales históricos de todos los datos en la base de datos. Los resultados históricos están cargados desde {min}; temporadas anteriores aún no están incluidas.",
+    "recordsCoveragePartial": "Totales históricos de todos los datos en la base de datos. Los resultados históricos están cargados desde {min}; las temporadas anteriores se añadirán pronto.",
     "recordsCoverageEmpty": "Totales históricos de toda la base de datos. Aún no hay resultados clasificados.",
     "mostWins": "Más Victorias en GP",
     "mostPoles": "Más Pole Positions",

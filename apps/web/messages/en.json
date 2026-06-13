@@ -44,7 +44,7 @@
     "newsChanges": "News & Changes",
     "allTimeRecords": "All-Time Records",
     "recordsCoverageFull": "All-time totals across every race and qualifying result in the database ({min}–{max}).",
-    "recordsCoveragePartial": "All-time totals across all data in the database. Historical results are currently loaded from {min} onward; earlier seasons are not yet seeded.",
+    "recordsCoveragePartial": "All-time totals across all data in the database. Historical results are loaded from {min} onward; earlier seasons will be added soon.",
     "recordsCoverageEmpty": "All-time totals across the full database. No classified results found yet.",
     "mostWins": "Most Grand Prix Wins",
     "mostPoles": "Most Pole Positions",
