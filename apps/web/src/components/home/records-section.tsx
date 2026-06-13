@@ -48,11 +48,11 @@ function RecordTable({
             </thead>
             <tbody>
               {rows.map((row, i) => (
-                <tr key={row.id} className="border-b border-white/5 hover:bg-white/5">
+                <tr key={row.driver_ref} className="border-b border-white/5 hover:bg-white/5">
                   <td className="p-3 font-mono text-white/50">{i + 1}</td>
                   <td className="p-3">
                     <Link
-                      href={`/f1/drivers/${row.id}`}
+                      href={`/f1/drivers/${row.driver_ref}`}
                       className="font-semibold hover:text-[#E10600] transition-colors"
                     >
                       {row.full_name}

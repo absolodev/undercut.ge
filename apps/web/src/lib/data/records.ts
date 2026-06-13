@@ -12,6 +12,7 @@ export type RecordConstructor = {
 
 export type DriverRecordRow = {
   id: number;
+  driver_ref: string;
   full_name: string;
   first_name: string | null;
   last_name: string | null;
@@ -21,6 +22,7 @@ export type DriverRecordRow = {
 
 type RawRecordRow = {
   id: number;
+  driver_ref: string;
   full_name: string;
   first_name: string | null;
   last_name: string | null;
@@ -36,6 +38,7 @@ function displayName(row: Pick<RawRecordRow, "full_name" | "first_name" | "last_
 function mapRecordRows(rows: RawRecordRow[]): DriverRecordRow[] {
   return rows.map((row) => ({
     id: row.id,
+    driver_ref: row.driver_ref,
     full_name: displayName(row),
     first_name: row.first_name,
     last_name: row.last_name,
@@ -52,6 +55,7 @@ export async function getMostWins(): Promise<DriverRecordRow[]> {
   const rows = await prisma.$queryRaw<RawRecordRow[]>`
     SELECT
       d.id,
+      d.driver_ref,
       d.full_name,
       d.first_name,
       d.last_name,
@@ -71,7 +75,7 @@ export async function getMostWins(): Promise<DriverRecordRow[]> {
     JOIN f1_constructors c ON r.constructor_id = c.id
     WHERE r.finish_position = 1
       AND s.session_type = 'R'
-    GROUP BY d.id, d.full_name, d.first_name, d.last_name
+    GROUP BY d.id, d.driver_ref, d.full_name, d.first_name, d.last_name
     ORDER BY count DESC
     LIMIT 20
   `;
@@ -86,6 +90,7 @@ export async function getMostPoles(): Promise<DriverRecordRow[]> {
   const rows = await prisma.$queryRaw<RawRecordRow[]>`
     SELECT
       d.id,
+      d.driver_ref,
       d.full_name,
       d.first_name,
       d.last_name,
@@ -105,7 +110,7 @@ export async function getMostPoles(): Promise<DriverRecordRow[]> {
     JOIN f1_constructors c ON qr.constructor_id = c.id
     WHERE qr.position = 1
       AND s.session_type = 'Q'
-    GROUP BY d.id, d.full_name, d.first_name, d.last_name
+    GROUP BY d.id, d.driver_ref, d.full_name, d.first_name, d.last_name
     ORDER BY count DESC
     LIMIT 20
   `;
