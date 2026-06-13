@@ -5,6 +5,7 @@ import { Link } from "@/i18n/navigation";
 import { getTranslations } from "next-intl/server";
 import { PageHeader } from "@/components/layout/page-header";
 import { buildPageMetadata } from "@/lib/seo";
+import { setLocaleFromParams } from "@/i18n/set-request-locale";
 
 export const metadata = buildPageMetadata({
   title: "F1 Seasons — UnderCut",
@@ -12,7 +13,12 @@ export const metadata = buildPageMetadata({
   path: "/f1/seasons",
 });
 
-export default async function SeasonsPage() {
+export default async function SeasonsPage({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}) {
+  await setLocaleFromParams(params);
   const t = await getTranslations("Seasons");
   const [seasons, currentSeason] = await Promise.all([
     getSeasons(),

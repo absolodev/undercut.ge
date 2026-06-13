@@ -1,7 +1,6 @@
 import { getDriverProfile } from "@/lib/data/drivers-profile";
 import { notFound } from "next/navigation";
 import { Link } from "@/i18n/navigation";
-import { getLocale } from "next-intl/server";
 import { DriverHeaderCard } from "@/components/profiles/driver-header-card";
 import { CareerStatsGrid } from "@/components/profiles/career-stats-grid";
 import { SeasonBreakdownTable } from "@/components/profiles/season-breakdown-table";
@@ -12,10 +11,11 @@ import { JsonLd } from "@/components/layout/json-ld";
 import { getSiteUrl } from "@/lib/seo";
 import type { Locale } from "@/i18n/config";
 import { getDriverSeoName } from "@/lib/seo/driver-names";
+import { setLocaleFromParams } from "@/i18n/set-request-locale";
 
-export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
-  const locale = (await getLocale()) as Locale;
+export async function generateMetadata({ params }: { params: Promise<{ locale: string; id: string }> }) {
+  const { locale: localeParam, id } = await params;
+  const locale = localeParam as Locale;
   const data = await getDriverProfile(id);
   if (!data) return { title: "Driver — UnderCut" };
   const statsRow = (data.stats as Array<{ wins?: bigint | number }>)[0];
@@ -27,9 +27,13 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   });
 }
 
-export default async function DriverProfilePage({ params }: { params: Promise<{ id: string }> }) {
+export default async function DriverProfilePage({
+  params,
+}: {
+  params: Promise<{ locale: string; id: string }>;
+}) {
+  const locale = await setLocaleFromParams(params);
   const { id } = await params;
-  const locale = (await getLocale()) as Locale;
   const data = await getDriverProfile(id);
   if (!data) notFound();
 

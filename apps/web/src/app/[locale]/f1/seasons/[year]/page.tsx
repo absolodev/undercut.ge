@@ -6,17 +6,22 @@ import { notFound } from "next/navigation";
 
 import { buildSeasonMetadata } from "@/lib/seo";
 import type { Locale } from "@/i18n/config";
-import { getLocale } from "next-intl/server";
+import { setLocaleFromParams } from "@/i18n/set-request-locale";
 
-export async function generateMetadata({ params }: { params: Promise<{ year: string }> }) {
-  const { year } = await params;
-  const locale = (await getLocale()) as Locale;
+export async function generateMetadata({ params }: { params: Promise<{ locale: string; year: string }> }) {
+  const { locale: localeParam, year } = await params;
+  const locale = localeParam as Locale;
   const yearNum = parseInt(year, 10);
   if (isNaN(yearNum)) return { title: "Season — UnderCut" };
   return buildSeasonMetadata({ year: yearNum, locale });
 }
 
-export default async function SeasonOverviewPage({ params }: { params: Promise<{ year: string }> }) {
+export default async function SeasonOverviewPage({
+  params,
+}: {
+  params: Promise<{ locale: string; year: string }>;
+}) {
+  await setLocaleFromParams(params);
   const { year: yearStr } = await params;
   const year = parseInt(yearStr);
 

@@ -6,13 +6,19 @@ import { LapChart } from "@/components/historical/lap-chart";
 import { TireStrategyDiagram } from "@/components/historical/tire-strategy-diagram";
 import { GridVsFinish } from "@/components/historical/grid-vs-finish";
 import { PitStopSummary } from "@/components/historical/pit-stop-summary";
+import { setLocaleFromParams } from "@/i18n/set-request-locale";
 
-export async function generateMetadata({ params }: { params: Promise<{ year: string, round: string }> }) {
+export async function generateMetadata({ params }: { params: Promise<{ locale: string; year: string; round: string }> }) {
   const { year, round } = await params;
   return { title: `Round ${round} - ${year} — UnderCut` };
 }
 
-export default async function RaceArchivePage({ params }: { params: Promise<{ year: string; round: string }> }) {
+export default async function RaceArchivePage({
+  params,
+}: {
+  params: Promise<{ locale: string; year: string; round: string }>;
+}) {
+  await setLocaleFromParams(params);
   const { year, round } = await params;
   const race = await getRaceArchive(parseInt(year), parseInt(round)) as any;
   if (!race) {

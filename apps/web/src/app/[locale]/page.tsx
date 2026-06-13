@@ -1,5 +1,5 @@
 import { redirect } from "@/i18n/navigation";
-import { getTranslations, getLocale } from "next-intl/server";
+import { getTranslations } from "next-intl/server";
 import { HomeShell } from "@/components/home/home-shell";
 import { SeasonDashboard } from "@/components/home/season-dashboard";
 import { RecordsSection } from "@/components/home/records-section";
@@ -21,6 +21,7 @@ import { resolveLiveSessionStatus } from "@/lib/live-status-server";
 import { buildPageMetadata, getSiteUrl } from "@/lib/seo";
 import { JsonLd } from "@/components/layout/json-ld";
 import type { Locale } from "@/i18n/config";
+import { setLocaleFromParams } from "@/i18n/set-request-locale";
 
 export const dynamic = "force-dynamic";
 
@@ -43,7 +44,12 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
   });
 }
 
-export default async function HomePage() {
+export default async function HomePage({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}) {
+  const locale = await setLocaleFromParams(params);
   const seasonYear = CURRENT_SEASON;
   const t = await getTranslations("Home");
   const [status, standings, recentResults, weekendRace, nextRace, seasonStats, news, wins, poles, coverage] =
@@ -61,7 +67,6 @@ export default async function HomePage() {
     ]);
 
   if (status.mode === "live") {
-    const locale = await getLocale();
     redirect({ href: "/live", locale });
   }
 

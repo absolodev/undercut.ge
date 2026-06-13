@@ -2,6 +2,7 @@ import { getAllCircuits } from "@/lib/data/circuits";
 import { Link } from "@/i18n/navigation";
 import { PageHeader } from "@/components/layout/page-header";
 import { buildPageMetadata } from "@/lib/seo";
+import { setLocaleFromParams } from "@/i18n/set-request-locale";
 
 export const metadata = buildPageMetadata({
   title: "F1 Circuits — UnderCut",
@@ -9,7 +10,12 @@ export const metadata = buildPageMetadata({
   path: "/f1/circuits",
 });
 
-export default async function CircuitsPage() {
+export default async function CircuitsPage({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}) {
+  await setLocaleFromParams(params);
   const circuits = await getAllCircuits();
 
   return (

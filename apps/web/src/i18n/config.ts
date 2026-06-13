@@ -21,19 +21,24 @@ export function getClientCountry(
   return cfIpCountry ?? vercelIpCountry;
 }
 
+/**
+ * Locale priority for bare `/` visits (no URL prefix): cookie → Accept-Language → geo → default.
+ * URL locale prefix is handled by next-intl middleware and always wins on prefixed paths.
+ */
 export function detectLocaleFromHeaders(
   cfIpCountry: string | null,
   vercelIpCountry: string | null,
   acceptLanguage: string | null,
   cookieLocale: string | undefined
 ): Locale {
-  const country = getClientCountry(cfIpCountry, vercelIpCountry);
-  if (country === "GE") return "ka";
+  if (cookieLocale && isLocale(cookieLocale)) return cookieLocale;
 
   const al = (acceptLanguage ?? "").toLowerCase();
   if (al.startsWith("ka") || al.includes(",ka")) return "ka";
   if (al.startsWith("es") || al.includes(",es")) return "es";
 
-  if (cookieLocale && isLocale(cookieLocale)) return cookieLocale;
+  const country = getClientCountry(cfIpCountry, vercelIpCountry);
+  if (country === "GE") return "ka";
+
   return defaultLocale;
 }

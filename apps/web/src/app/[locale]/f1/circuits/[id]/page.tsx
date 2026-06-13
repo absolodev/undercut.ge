@@ -10,8 +10,9 @@ import { CircuitRecords } from "@/components/circuits/circuit-records";
 import { LapTimeEvolution } from "@/components/circuits/lap-time-evolution";
 import { getCircuitMapData } from "@/lib/track-maps/circuit-loader";
 import { buildPageMetadata } from "@/lib/seo";
+import { setLocaleFromParams } from "@/i18n/set-request-locale";
 
-export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
+export async function generateMetadata({ params }: { params: Promise<{ locale: string; id: string }> }) {
   const { id } = await params;
   const data = await getCircuitProfile(id);
   if (!data) return buildPageMetadata({ title: "Circuit — UnderCut", path: `/f1/circuits/${id}` });
@@ -22,7 +23,12 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   });
 }
 
-export default async function CircuitProfilePage({ params }: { params: Promise<{ id: string }> }) {
+export default async function CircuitProfilePage({
+  params,
+}: {
+  params: Promise<{ locale: string; id: string }>;
+}) {
+  await setLocaleFromParams(params);
   const { id } = await params;
   const data = await getCircuitProfile(id);
   if (!data) notFound();

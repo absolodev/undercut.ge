@@ -12,7 +12,7 @@ import { resolveConstructorColor } from "@/lib/assets/constructors";
 import { buildConstructorMetadata, getSiteUrl } from "@/lib/seo";
 import type { Locale } from "@/i18n/config";
 import { JsonLd } from "@/components/layout/json-ld";
-import { getLocale } from "next-intl/server";
+import { setLocaleFromParams } from "@/i18n/set-request-locale";
 
 export async function generateMetadata({
   params,
@@ -32,14 +32,14 @@ export async function generateMetadata({
 export default async function ConstructorProfilePage({
   params,
 }: {
-  params: Promise<{ id: string }>;
+  params: Promise<{ locale: string; id: string }>;
 }) {
+  const locale = (await setLocaleFromParams(params)) as Locale;
   const { id } = await params;
   const data = await getConstructorProfile(id);
   if (!data) notFound();
 
   const t = await getTranslations("Constructors");
-  const locale = (await getLocale()) as Locale;
   const { constructor, stats, drivers, seasonHistory, topDrivers } = data;
   const teamColor = resolveConstructorColor(constructor.constructor_ref, constructor.color_primary);
 

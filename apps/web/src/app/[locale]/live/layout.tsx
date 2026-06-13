@@ -1,5 +1,6 @@
 import { ReactNode } from "react";
 import { buildPageMetadata } from "@/lib/seo";
+import { setLocaleFromParams } from "@/i18n/set-request-locale";
 
 export const metadata = buildPageMetadata({
   title: "Live Console — UnderCut",
@@ -7,6 +8,12 @@ export const metadata = buildPageMetadata({
   path: "/live",
 });
 
-export default function LiveLayout({ children }: { children: ReactNode }) {
+type Props = {
+  children: ReactNode;
+  params: Promise<{ locale: string }>;
+};
+
+export default async function LiveLayout({ children, params }: Props) {
+  await setLocaleFromParams(params);
   return children;
 }
