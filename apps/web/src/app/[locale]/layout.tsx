@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Orbitron, JetBrains_Mono, Geist, Exo_2, Noto_Sans_Georgian } from "next/font/google";
 import { hasLocale, NextIntlClientProvider } from "next-intl";
-import { getMessages, setRequestLocale } from "next-intl/server";
+import { setRequestLocale } from "next-intl/server";
 import { notFound } from "next/navigation";
 import "../globals.css";
 import { CommandPalette } from "@/components/pro-tools/command-palette";
@@ -94,7 +94,7 @@ export default async function LocaleLayout({ children, params }: Props) {
 
   const locale = localeParam as Locale;
   setRequestLocale(locale);
-  const messages = await getMessages();
+  const messages = (await import(`../../../messages/${locale}.json`)).default;
 
   return (
     <html
