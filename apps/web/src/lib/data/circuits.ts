@@ -1,6 +1,7 @@
+import type { f1_circuits } from "@prisma/client";
 import { prisma } from "@pitwall/db";
 
-export async function getAllCircuits() {
+export async function getAllCircuits(): Promise<f1_circuits[]> {
   return prisma.f1_circuits.findMany({
     orderBy: { name: "asc" },
   });
