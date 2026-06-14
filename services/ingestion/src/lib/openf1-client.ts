@@ -47,13 +47,19 @@ export async function openF1Fetch(
   const qs = new URLSearchParams(params);
   const res = await fetch(`${OPENF1_BASE}/${endpoint}?${qs}`, { headers });
 
-  if (!res.ok) {
+  let body: unknown[] | { detail?: string };
+  try {
+    body = (await res.json()) as unknown[] | { detail?: string };
+  } catch {
     return { ok: false, restricted: false };
   }
 
-  const body = (await res.json()) as unknown[] | { detail?: string };
   if (!Array.isArray(body)) {
     return { ok: false, restricted: isLiveRestrictionDetail(body.detail) };
+  }
+
+  if (!res.ok) {
+    return { ok: false, restricted: false };
   }
 
   return { ok: true, data: body };
