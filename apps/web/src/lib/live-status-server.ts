@@ -11,6 +11,7 @@ import {
   findUpcomingJolpicaWeekend,
   findLiveScheduledSession,
   findNextScheduledSession,
+  isWeekendComplete,
   type ScheduledSession,
 } from "@/lib/jolpica-schedule";
 import {
@@ -144,6 +145,28 @@ function weekendStatus(
   };
 }
 
+function offWeekStatus(
+  nextRace: Awaited<ReturnType<typeof getNextRace>>
+): LiveSessionStatus {
+  const circuitRef = nextRace?.circuit.circuit_ref ?? null;
+  const nextSession = nextRace?.sessions.find((s) => new Date(s.date_start) > new Date());
+  return {
+    isLive: false,
+    sessionType: null,
+    circuitName: circuitRef,
+    circuitRef,
+    meetingName: nextRace?.race_name ?? null,
+    sessionName: nextSession?.session_name ?? null,
+    countdownSeconds: nextSession
+      ? secondsUntil(new Date(nextSession.date_start))
+      : nextRace
+        ? secondsUntil(new Date(nextRace.race_date))
+        : null,
+    weekendActive: false,
+    mode: "off-week",
+  };
+}
+
 export async function resolveLiveSessionStatus(): Promise<LiveSessionStatus> {
   const seasonYear = CURRENT_SEASON;
   const [redisSession, openF1Result, weekendRace, nextRace] = await Promise.all([
@@ -154,7 +177,22 @@ export async function resolveLiveSessionStatus(): Promise<LiveSessionStatus> {
   ]);
 
   const fromRedis = redisSession ? statusFromRedisSession(redisSession, weekendRace) : null;
-  if (fromRedis) return fromRedis;
+  if (fromRedis) {
+    if (weekendRace) {
+      const jolpica = await fetchJolpicaRaceForWeekend(
+        weekendRace.season_year,
+        weekendRace.circuit.circuit_ref,
+        weekendRace.race_date
+      );
+      if (jolpica && !findLiveScheduledSession(jolpica.sessions)) {
+        // Stale Redis — Jolpica schedule says no session is live.
+      } else {
+        return fromRedis;
+      }
+    } else {
+      return fromRedis;
+    }
+  }
 
   if (openF1Result.kind === "session") {
     const fromOpenF1 = statusFromOpenF1Session(openF1Result.session, weekendRace);
@@ -168,7 +206,7 @@ export async function resolveLiveSessionStatus(): Promise<LiveSessionStatus> {
     const fromDb = resolveLiveFromDbSessions(weekendRace);
     if (fromDb) return fromDb;
 
-    // OpenF1 blocks unauthenticated requests during live sessions — treat as live
+    // OpenF1 blocks unauthenticated requests during live sessions — only treat as live
     // when Jolpica schedule confirms an in-progress session.
     if (openF1Result.kind === "live-restricted") {
       const jolpica = await fetchJolpicaRaceForWeekend(
@@ -178,19 +216,6 @@ export async function resolveLiveSessionStatus(): Promise<LiveSessionStatus> {
       );
       const liveSession = jolpica ? findLiveScheduledSession(jolpica.sessions) : null;
       if (liveSession) return statusFromScheduledSession(liveSession, weekendRace);
-
-      // Restricted API + active weekend: assume live with best-known circuit metadata.
-      return {
-        isLive: true,
-        sessionType: null,
-        circuitName: weekendRace.circuit.circuit_ref,
-        circuitRef: weekendRace.circuit.circuit_ref,
-        meetingName: weekendRace.race_name,
-        sessionName: null,
-        countdownSeconds: null,
-        weekendActive: true,
-        mode: "live",
-      };
     }
 
     const jolpica = await fetchJolpicaRaceForWeekend(
@@ -198,6 +223,11 @@ export async function resolveLiveSessionStatus(): Promise<LiveSessionStatus> {
       weekendRace.circuit.circuit_ref,
       weekendRace.race_date
     );
+
+    if (jolpica && isWeekendComplete(jolpica.sessions)) {
+      return offWeekStatus(nextRace);
+    }
+
     const upcoming =
       jolpica?.sessions && findNextScheduledSession(jolpica.sessions);
     if (upcoming) {
@@ -217,11 +247,9 @@ export async function resolveLiveSessionStatus(): Promise<LiveSessionStatus> {
   }
 
   // DB calendar incomplete — Jolpica is authoritative for session times.
-  if (openF1Result.kind === "live-restricted" || openF1Result.kind === "session") {
-    const jolpicaLive = await findLiveSessionFromJolpicaCalendar(seasonYear);
-    if (jolpicaLive) {
-      return statusFromScheduledSession(jolpicaLive.session, null);
-    }
+  const jolpicaLive = await findLiveSessionFromJolpicaCalendar(seasonYear);
+  if (jolpicaLive) {
+    return statusFromScheduledSession(jolpicaLive.session, null);
   }
 
   const jolpicaWeekend = await findUpcomingJolpicaWeekend(seasonYear);
@@ -240,22 +268,5 @@ export async function resolveLiveSessionStatus(): Promise<LiveSessionStatus> {
     };
   }
 
-  const calendarRace = nextRace;
-  const circuitRef = calendarRace?.circuit.circuit_ref ?? null;
-  const nextSession = nextRace?.sessions.find((s) => new Date(s.date_start) > new Date());
-  return {
-    isLive: false,
-    sessionType: null,
-    circuitName: circuitRef,
-    circuitRef,
-    meetingName: nextRace?.race_name ?? null,
-    sessionName: nextSession?.session_name ?? null,
-    countdownSeconds: nextSession
-      ? secondsUntil(new Date(nextSession.date_start))
-      : nextRace
-        ? secondsUntil(new Date(nextRace.race_date))
-        : null,
-    weekendActive: false,
-    mode: "off-week",
-  };
+  return offWeekStatus(nextRace);
 }

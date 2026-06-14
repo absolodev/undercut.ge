@@ -1,5 +1,10 @@
 import type { SessionType } from "@pitwall/types";
-import { isLiveSessionType, isSessionLive } from "@/lib/session-utils";
+import {
+  isLiveSessionType,
+  isSessionEnded,
+  isSessionLive,
+  SESSION_END_BUFFER_MS,
+} from "@/lib/session-utils";
 
 const JOLPICA_BASE = "https://api.jolpi.ca/ergast/f1";
 
@@ -85,6 +90,22 @@ export function findLiveScheduledSession(sessions: ScheduledSession[]): Schedule
 export function findNextScheduledSession(sessions: ScheduledSession[]): ScheduledSession | null {
   const now = Date.now();
   return sessions.find((s) => new Date(s.dateStart).getTime() > now) ?? null;
+}
+
+/** True when every scheduled session has passed its end time (+ buffer). */
+export function areAllSessionsEnded(
+  sessions: ScheduledSession[],
+  bufferMs: number = SESSION_END_BUFFER_MS
+): boolean {
+  if (sessions.length === 0) return false;
+  return sessions.every((s) => isSessionEnded(s, bufferMs));
+}
+
+/** Weekend is over once the race session has ended (+ buffer). */
+export function isWeekendComplete(sessions: ScheduledSession[]): boolean {
+  const race = sessions.find((s) => s.sessionType === "R");
+  if (!race) return areAllSessionsEnded(sessions);
+  return isSessionEnded(race);
 }
 
 async function fetchJolpicaRaceTable(seasonYear: number, round?: number): Promise<JolpicaRace | null> {

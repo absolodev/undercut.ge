@@ -74,9 +74,18 @@ function parseRaceSessions(race: JolpicaRace): ScheduledSession[] {
     .map((s) => ({ ...s, circuitRef, meetingName }));
 }
 
-function isSessionLive(session: { dateStart: string; dateEnd: string }): boolean {
+const SESSION_END_BUFFER_MS = 30 * 60 * 1000;
+
+function isSessionLive(session: { dateStart: string; dateEnd: string; sessionType?: SessionType }): boolean {
   const now = Date.now();
-  return now >= new Date(session.dateStart).getTime() && now <= new Date(session.dateEnd).getTime();
+  const start = new Date(session.dateStart).getTime();
+  if (now < start) return false;
+  const end = new Date(session.dateEnd);
+  if (end.getTime() <= start) {
+    const duration = SESSION_DURATION_MS[session.sessionType ?? "R"];
+    return now <= start + duration + SESSION_END_BUFFER_MS;
+  }
+  return now <= end.getTime() + SESSION_END_BUFFER_MS;
 }
 
 export async function findLiveSessionFromJolpica(

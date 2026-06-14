@@ -1,5 +1,41 @@
 import type { SessionInfo, SessionType } from "@pitwall/types";
 
+const SESSION_DURATION_MS: Record<SessionType, number> = {
+  FP1: 60 * 60 * 1000,
+  FP2: 60 * 60 * 1000,
+  FP3: 60 * 60 * 1000,
+  Q: 60 * 60 * 1000,
+  SQ: 45 * 60 * 1000,
+  S: 60 * 60 * 1000,
+  R: 2 * 60 * 60 * 1000,
+};
+
+const SESSION_END_BUFFER_MS = 30 * 60 * 1000;
+
+export function isSessionLive(session: {
+  dateStart?: string;
+  date_start?: string;
+  dateEnd?: string | null;
+  date_end?: string | null;
+  sessionType?: SessionType;
+  session_type?: SessionType;
+}): boolean {
+  const startRaw = session.dateStart ?? session.date_start;
+  if (!startRaw) return false;
+  const start = new Date(startRaw).getTime();
+  const now = Date.now();
+  if (now < start) return false;
+
+  const endRaw = session.dateEnd ?? session.date_end;
+  let end = endRaw ? new Date(endRaw).getTime() : null;
+  if (!end || end <= start) {
+    const type = session.sessionType ?? session.session_type ?? "R";
+    end = start + (SESSION_DURATION_MS[type] ?? SESSION_DURATION_MS.R);
+  }
+
+  return now <= end + SESSION_END_BUFFER_MS;
+}
+
 export function mapOpenF1SessionType(name: string, type?: string): SessionType {
   const normalized = (type ?? name).toUpperCase();
   if (normalized.includes("FP1") || normalized === "P1") return "FP1";

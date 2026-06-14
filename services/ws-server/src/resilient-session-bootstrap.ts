@@ -1,4 +1,4 @@
-import { mapOpenF1Session } from "./lib/session-utils";
+import { mapOpenF1Session, isSessionLive } from "./lib/session-utils";
 import type { SessionBootstrapPayload } from "./session-bootstrap";
 import { SessionBootstrap } from "./session-bootstrap";
 import { openF1Fetch, hasOpenF1Credentials } from "./lib/openf1-client";
@@ -74,6 +74,9 @@ export class ResilientSessionBootstrap extends SessionBootstrap {
     }
 
     const session = mapOpenF1Session(sessions.data[0] as Record<string, unknown>);
+    if (!isSessionLive(session)) {
+      return { session: null, lap: null, trackStatus: null, weather: null, standings: null };
+    }
     const sessionKey = String(session.sessionKey);
 
     let standings: unknown[] | null = null;

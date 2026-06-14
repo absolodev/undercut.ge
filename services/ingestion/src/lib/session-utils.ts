@@ -87,11 +87,32 @@ export function mapOpenF1Session(session: Record<string, unknown>): SessionInfo 
   };
 }
 
-export function isSessionLive(session: { date_start: string; date_end: string | null }): boolean {
+export function isSessionLive(session: {
+  date_start: string;
+  date_end: string | null;
+  session_type?: string;
+}): boolean {
   const start = new Date(session.date_start);
-  const end = session.date_end ? new Date(session.date_end) : null;
-  const now = new Date();
-  if (now < start) return false;
-  if (!end) return true;
-  return now <= end;
+  const now = Date.now();
+  if (now < start.getTime()) return false;
+
+  const SESSION_DURATION_MS: Record<string, number> = {
+    FP1: 60 * 60 * 1000,
+    FP2: 60 * 60 * 1000,
+    FP3: 60 * 60 * 1000,
+    Q: 60 * 60 * 1000,
+    SQ: 45 * 60 * 1000,
+    S: 60 * 60 * 1000,
+    R: 2 * 60 * 60 * 1000,
+  };
+  const SESSION_END_BUFFER_MS = 30 * 60 * 1000;
+
+  let end = session.date_end ? new Date(session.date_end) : null;
+  if (!end || end.getTime() <= start.getTime()) {
+    const type = session.session_type ?? "R";
+    const duration = SESSION_DURATION_MS[type] ?? SESSION_DURATION_MS.R;
+    end = new Date(start.getTime() + duration);
+  }
+
+  return now <= end.getTime() + SESSION_END_BUFFER_MS;
 }

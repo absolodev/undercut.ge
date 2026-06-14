@@ -12,6 +12,8 @@ const SESSION_DURATION_MS: Record<SessionType, number> = {
   R: 2 * 60 * 60 * 1000,
 };
 
+const SESSION_END_BUFFER_MS = 30 * 60 * 1000;
+
 interface JolpicaTimeSlot {
   date: string;
   time?: string;
@@ -71,9 +73,30 @@ function parseRaceSessions(race: JolpicaRace): ScheduledSession[] {
     .map((s) => ({ ...s, circuitRef, meetingName }));
 }
 
-function isSessionLive(session: { dateStart: string; dateEnd: string }): boolean {
+function resolveSessionEnd(session: {
+  dateStart: string;
+  dateEnd: string;
+  sessionType?: SessionType;
+}): Date {
+  const start = new Date(session.dateStart);
+  const end = new Date(session.dateEnd);
+  if (end.getTime() <= start.getTime()) {
+    const duration = SESSION_DURATION_MS[session.sessionType ?? "R"];
+    return new Date(start.getTime() + duration);
+  }
+  return end;
+}
+
+function isSessionLive(session: {
+  dateStart: string;
+  dateEnd: string;
+  sessionType?: SessionType;
+}): boolean {
   const now = Date.now();
-  return now >= new Date(session.dateStart).getTime() && now <= new Date(session.dateEnd).getTime();
+  const start = new Date(session.dateStart).getTime();
+  if (now < start) return false;
+  const end = resolveSessionEnd(session);
+  return now <= end.getTime() + SESSION_END_BUFFER_MS;
 }
 
 export async function findLiveSessionFromJolpica(

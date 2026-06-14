@@ -28,6 +28,44 @@ const SESSION_DURATION_MS: Record<string, number> = {
   R: 2 * 60 * 60 * 1000,
 };
 
+/** Grace after scheduled session end (races can run slightly over). */
+export const SESSION_END_BUFFER_MS = 30 * 60 * 1000;
+
+export function resolveSessionEnd(
+  session: {
+    dateStart?: string | Date;
+    date_start?: string | Date;
+    dateEnd?: string | Date | null;
+    date_end?: string | Date | null;
+    sessionType?: SessionType | string | null;
+    session_type?: SessionType | string | null;
+  }
+): Date | null {
+  const startRaw = session.dateStart ?? session.date_start;
+  if (!startRaw) return null;
+  const start = startRaw instanceof Date ? startRaw : new Date(startRaw);
+
+  const endRaw = session.dateEnd ?? session.date_end;
+  let end = endRaw ? (endRaw instanceof Date ? endRaw : new Date(endRaw)) : null;
+
+  if (!end || end.getTime() <= start.getTime()) {
+    const type = session.sessionType ?? session.session_type;
+    const duration = (type && SESSION_DURATION_MS[type]) || SESSION_DURATION_MS.R;
+    end = new Date(start.getTime() + duration);
+  }
+
+  return end;
+}
+
+export function isSessionEnded(
+  session: Parameters<typeof resolveSessionEnd>[0],
+  bufferMs: number = SESSION_END_BUFFER_MS
+): boolean {
+  const end = resolveSessionEnd(session);
+  if (!end) return false;
+  return Date.now() > end.getTime() + bufferMs;
+}
+
 export function isSessionLive(
   session: {
     dateStart?: string | Date;
@@ -41,21 +79,13 @@ export function isSessionLive(
   const startRaw = session.dateStart ?? session.date_start;
   if (!startRaw) return false;
   const start = startRaw instanceof Date ? startRaw : new Date(startRaw);
-  const now = new Date();
-  if (now < start) return false;
+  const now = Date.now();
+  if (now < start.getTime()) return false;
 
-  const endRaw = session.dateEnd ?? session.date_end;
-  let end = endRaw ? (endRaw instanceof Date ? endRaw : new Date(endRaw)) : null;
+  const end = resolveSessionEnd(session);
+  if (!end) return false;
 
-  // DB seeds often set date_end = date_start (midnight). Infer a realistic window.
-  if (!end || end.getTime() <= start.getTime()) {
-    const type = session.sessionType ?? session.session_type;
-    const duration =
-      (type && SESSION_DURATION_MS[type]) || SESSION_DURATION_MS.R;
-    end = new Date(start.getTime() + duration);
-  }
-
-  return now <= end;
+  return now <= end.getTime() + SESSION_END_BUFFER_MS;
 }
 
 export function secondsUntil(date: Date): number {
