@@ -55,6 +55,9 @@ if [[ "$SKIP_BUILD" == false ]]; then
   echo "==> Building web app (clean .next, webpack)..."
   rm -rf apps/web/.next
   NODE_ENV=production pnpm build --filter=web
+
+  echo "==> Building ws-server..."
+  pnpm --filter ws-server build
 fi
 
 echo "==> Restarting PM2 process..."

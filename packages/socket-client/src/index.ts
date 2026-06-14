@@ -2,13 +2,20 @@ import { io, Socket } from "socket.io-client";
 
 let socket: Socket | null = null;
 
+function getDefaultWsUrl(): string {
+  if (typeof window === "undefined") return "http://localhost:3001";
+  const { protocol, hostname, origin } = window.location;
+  // Local dev: Next.js on :3000, ws-server on :3001
+  if (hostname === "localhost" || hostname === "127.0.0.1") {
+    return `${protocol}//${hostname}:3001`;
+  }
+  // Production: same origin; nginx proxies /socket.io/ → ws-server
+  return origin;
+}
+
 export function getSocket(): Socket {
   if (!socket) {
-    const defaultUrl = typeof window !== "undefined" 
-      ? `${window.location.protocol}//${window.location.hostname}:3001`
-      : "http://localhost:3001";
-      
-    const wsUrl = process.env.NEXT_PUBLIC_WS_URL || defaultUrl;
+    const wsUrl = process.env.NEXT_PUBLIC_WS_URL || getDefaultWsUrl();
     console.log("[WS] Initializing connection to:", wsUrl);
 
     socket = io(wsUrl, {
