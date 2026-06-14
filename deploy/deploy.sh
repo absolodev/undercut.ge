@@ -58,6 +58,9 @@ if [[ "$SKIP_BUILD" == false ]]; then
 
   echo "==> Building ws-server..."
   pnpm --filter ws-server build
+
+  echo "==> Building ingestion service..."
+  pnpm --filter ingestion build
 fi
 
 echo "==> Restarting PM2 process..."

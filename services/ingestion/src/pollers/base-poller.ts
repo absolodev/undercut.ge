@@ -1,7 +1,6 @@
 import { openF1Limiter } from "../lib/rate-limiter";
+import { openF1Fetch } from "../lib/openf1-client";
 import { logger } from "../lib/logger";
-
-const OPENF1_BASE = "https://api.openf1.org/v1";
 
 export abstract class BasePoller {
   protected endpoint: string;
@@ -30,22 +29,23 @@ export abstract class BasePoller {
   private async tick(sessionKey: number): Promise<void> {
     try {
       await openF1Limiter.acquire();
-      const params = new URLSearchParams({ session_key: String(sessionKey) });
-      if (this.lastTimestamp) params.set("date>", this.lastTimestamp);
+      const params: Record<string, string> = { session_key: String(sessionKey) };
+      if (this.lastTimestamp) params["date>"] = this.lastTimestamp;
 
-      const url = `${OPENF1_BASE}/${this.endpoint}?${params}`;
-      const res = await fetch(url);
+      const result = await openF1Fetch(this.endpoint, params);
 
-      if (res.status === 429) {
-        this.backoffMs = Math.min(this.backoffMs * 2 || 1000, this.maxBackoffMs);
-        logger.warn({ endpoint: this.endpoint, backoff: this.backoffMs }, "Rate limited, backing off");
-      } else if (res.ok) {
-        const data = await res.json() as any[];
+      if (!result.ok) {
+        if (result.restricted) {
+          logger.warn({ endpoint: this.endpoint }, "OpenF1 live restriction — poller paused");
+          this.backoffMs = Math.min(this.backoffMs * 2 || 5000, this.maxBackoffMs);
+        }
+      } else {
+        const data = result.data as any[];
         if (data.length > 0) {
           this.lastTimestamp = data[data.length - 1].date || new Date().toISOString();
           await this.onData(data, sessionKey);
         }
-        this.backoffMs = 0; // Reset backoff on success
+        this.backoffMs = 0;
       }
     } catch (err) {
       logger.error({ endpoint: this.endpoint, err }, "Poller error");

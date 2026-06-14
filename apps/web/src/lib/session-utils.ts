@@ -18,15 +18,43 @@ export function isLiveSessionType(type: SessionType | null): boolean {
   return type !== null && LIVE_SESSION_TYPES.has(type);
 }
 
-export function isSessionLive(session: { dateStart?: string; date_start?: string; dateEnd?: string | null; date_end?: string | null }): boolean {
-  const startStr = session.dateStart ?? session.date_start;
-  if (!startStr) return false;
-  const start = new Date(startStr);
-  const endStr = session.dateEnd ?? session.date_end;
-  const end = endStr ? new Date(endStr) : null;
+const SESSION_DURATION_MS: Record<string, number> = {
+  FP1: 60 * 60 * 1000,
+  FP2: 60 * 60 * 1000,
+  FP3: 60 * 60 * 1000,
+  Q: 60 * 60 * 1000,
+  SQ: 45 * 60 * 1000,
+  S: 60 * 60 * 1000,
+  R: 2 * 60 * 60 * 1000,
+};
+
+export function isSessionLive(
+  session: {
+    dateStart?: string | Date;
+    date_start?: string | Date;
+    dateEnd?: string | Date | null;
+    date_end?: string | Date | null;
+    sessionType?: SessionType | string | null;
+    session_type?: SessionType | string | null;
+  }
+): boolean {
+  const startRaw = session.dateStart ?? session.date_start;
+  if (!startRaw) return false;
+  const start = startRaw instanceof Date ? startRaw : new Date(startRaw);
   const now = new Date();
   if (now < start) return false;
-  if (!end) return true;
+
+  const endRaw = session.dateEnd ?? session.date_end;
+  let end = endRaw ? (endRaw instanceof Date ? endRaw : new Date(endRaw)) : null;
+
+  // DB seeds often set date_end = date_start (midnight). Infer a realistic window.
+  if (!end || end.getTime() <= start.getTime()) {
+    const type = session.sessionType ?? session.session_type;
+    const duration =
+      (type && SESSION_DURATION_MS[type]) || SESSION_DURATION_MS.R;
+    end = new Date(start.getTime() + duration);
+  }
+
   return now <= end;
 }
 

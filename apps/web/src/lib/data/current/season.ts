@@ -17,17 +17,16 @@ export async function getNextRace(seasonYear: number = CURRENT_SEASON) {
 export async function getActiveWeekendRace(seasonYear: number = CURRENT_SEASON) {
   const now = new Date();
   const windowStart = new Date(now);
-  windowStart.setDate(windowStart.getDate() - 3);
+  windowStart.setUTCDate(windowStart.getUTCDate() - 3);
+  windowStart.setUTCHours(0, 0, 0, 0);
+  const windowEnd = new Date(now);
+  windowEnd.setUTCDate(windowEnd.getUTCDate() + 1);
+  windowEnd.setUTCHours(23, 59, 59, 999);
 
   return prisma.f1_races.findFirst({
     where: {
       season_year: seasonYear,
-      sessions: {
-        some: {
-          date_start: { lte: now },
-          OR: [{ date_end: null }, { date_end: { gte: windowStart } }],
-        },
-      },
+      race_date: { gte: windowStart, lte: windowEnd },
     },
     orderBy: { race_date: "asc" },
     include: {

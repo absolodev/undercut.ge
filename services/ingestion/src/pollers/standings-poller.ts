@@ -1,9 +1,8 @@
 import { openF1Limiter } from "../lib/rate-limiter";
+import { openF1Fetch } from "../lib/openf1-client";
 import { logger } from "../lib/logger";
 import { normalizeStandings } from "../normalizers/openf1-normalizer";
 import { redisKvWriter } from "../writers/redis-kv-writer";
-
-const OPENF1_BASE = "https://api.openf1.org/v1";
 
 export class StandingsPoller {
   private intervalMs = 1000;
@@ -26,11 +25,8 @@ export class StandingsPoller {
 
   private async fetchJson(endpoint: string, sessionKey: number): Promise<any[]> {
     await openF1Limiter.acquire();
-    const params = new URLSearchParams({ session_key: String(sessionKey) });
-    const res = await fetch(`${OPENF1_BASE}/${endpoint}?${params}`);
-    if (!res.ok) return [];
-    const data = await res.json();
-    return Array.isArray(data) ? data : [];
+    const result = await openF1Fetch(endpoint, { session_key: String(sessionKey) });
+    return result.ok ? (result.data as any[]) : [];
   }
 
   private async tick(): Promise<void> {

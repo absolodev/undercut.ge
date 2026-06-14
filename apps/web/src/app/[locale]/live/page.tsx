@@ -1,6 +1,7 @@
 "use client";
 
 import { useWebSocketConnection } from "@/lib/ws-connector";
+import { useLiveSessionBootstrap } from "@/hooks/use-live-session-bootstrap";
 import { TimingTower } from "@/components/live/timing-tower";
 import dynamic from "next/dynamic";
 import { SessionHeader } from "@/components/live/session-header";
@@ -23,6 +24,7 @@ const TrackMap = dynamic(
 
 export default function LivePage() {
   useWebSocketConnection();
+  useLiveSessionBootstrap();
 
   return (
     <LiveShell>
