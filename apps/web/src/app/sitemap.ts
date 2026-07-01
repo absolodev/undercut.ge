@@ -1,6 +1,8 @@
 import type { MetadataRoute } from "next";
 import { prisma } from "@pitwall/db";
 import { getSiteUrl } from "@/lib/seo";
+
+export const dynamic = "force-dynamic";
 import { CURRENT_SEASON } from "@/lib/config";
 import { locales } from "@/i18n/config";
 

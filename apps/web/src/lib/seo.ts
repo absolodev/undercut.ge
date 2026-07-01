@@ -23,14 +23,14 @@ export function getSiteUrl(path = "", locale?: Locale): string {
   return `${base}${localePath}`;
 }
 
-export function buildLocaleAlternates(path: string): Metadata["alternates"] {
+export function buildLocaleAlternates(path: string, locale: Locale): Metadata["alternates"] {
   const languages: Record<string, string> = {};
-  for (const locale of locales) {
-    languages[locale] = getSiteUrl(path, locale);
+  for (const l of locales) {
+    languages[l] = getSiteUrl(path, l);
   }
   languages["x-default"] = getSiteUrl(path, "en");
   return {
-    canonical: getSiteUrl(path, "en"),
+    canonical: getSiteUrl(path, locale),
     languages,
   };
 }
@@ -54,7 +54,7 @@ export function buildPageMetadata({
 }): Metadata {
   const canonical = getSiteUrl(path, locale);
   const fullTitle = title.includes(SITE_NAME) ? title : `${title} | ${SITE_NAME}`;
-  const alternates = buildLocaleAlternates(path);
+  const alternates = buildLocaleAlternates(path, locale);
 
   const otherLocales = locales
     .filter((l) => l !== locale)

@@ -8,6 +8,7 @@ import { LanguageSwitcher } from "./language-switcher";
 import { useTranslations } from "next-intl";
 
 const NAV_ITEMS = [
+  { href: "/f1/weekend", labelKey: "weekend" as const },
   { href: "/f1/seasons", labelKey: "seasons" as const },
   { href: "/f1/drivers", labelKey: "drivers" as const },
   { href: "/f1/constructors", labelKey: "constructors" as const },
