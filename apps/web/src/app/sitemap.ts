@@ -9,6 +9,7 @@ import { locales } from "@/i18n/config";
 const STATIC_PATHS = [
   { path: "", priority: 1, changeFrequency: "hourly" as const },
   { path: "/live", priority: 0.9, changeFrequency: "always" as const },
+  { path: "/f1/weekend", priority: 0.8, changeFrequency: "daily" as const },
   { path: "/f1/seasons", priority: 0.8, changeFrequency: "weekly" as const },
   { path: `/f1/seasons/${CURRENT_SEASON}`, priority: 0.8, changeFrequency: "daily" as const },
   { path: "/f1/drivers", priority: 0.7, changeFrequency: "weekly" as const },
