@@ -8,7 +8,7 @@
  * Intended to run after each race weekend (cron, GitHub Actions, or manual).
  */
 import { prisma } from "../src/index";
-import { seedRacesAndResults, seedQualifyingResults } from "./seed";
+import { seedRacesAndResults, seedQualifyingResults, seedSeasonCalendar } from "./seed";
 import { seedSessionDetailsForYear } from "./seed-session-details";
 import { seedStandingsForYear } from "./seed-standings";
 
@@ -17,16 +17,19 @@ const year = parseInt(process.argv[2] ?? process.env.CURRENT_SEASON ?? String(ne
 async function syncSeason(targetYear: number): Promise<void> {
   console.log(`\n=== UnderCut sync: ${targetYear} ===\n`);
 
-  console.log("1/4 Race results …");
+  console.log("1/5 Season calendar …");
+  await seedSeasonCalendar(targetYear);
+
+  console.log("2/5 Race results …");
   await seedRacesAndResults(targetYear);
 
-  console.log("2/4 Qualifying results …");
+  console.log("3/5 Qualifying results …");
   await seedQualifyingResults(targetYear);
 
-  console.log("3/4 Session details (laps, pits, stints) …");
+  console.log("4/5 Session details (laps, pits, stints) …");
   await seedSessionDetailsForYear(targetYear);
 
-  console.log("4/4 Standings …");
+  console.log("5/5 Standings …");
   await seedStandingsForYear(targetYear);
 
   const completed = await prisma.f1_races.count({

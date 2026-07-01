@@ -176,6 +176,78 @@ async function seedCircuits(): Promise<void> {
   }
 }
 
+async function upsertRaceFromJolpica(
+  year: number,
+  r: {
+    round: string;
+    raceName: string;
+    date: string;
+    time?: string;
+    url?: string;
+    Circuit: {
+      circuitId: string;
+      circuitName: string;
+      Location: { locality: string; country: string; lat: string; long: string };
+    };
+  },
+) {
+  let circuit = await prisma.f1_circuits.findUnique({
+    where: { circuit_ref: r.Circuit.circuitId },
+  });
+  if (!circuit) {
+    circuit = await prisma.f1_circuits.create({
+      data: {
+        circuit_ref: r.Circuit.circuitId,
+        name: r.Circuit.circuitName,
+        location: r.Circuit.Location.locality,
+        country: r.Circuit.Location.country,
+        lat: parseFloat(r.Circuit.Location.lat),
+        lng: parseFloat(r.Circuit.Location.long),
+      },
+    });
+  }
+
+  const raceDate = new Date(r.date);
+  const raceTime = r.time ? new Date(`${r.date}T${r.time}`) : null;
+
+  return prisma.f1_races.upsert({
+    where: {
+      season_year_round: {
+        season_year: year,
+        round: parseInt(r.round, 10),
+      },
+    },
+    update: {
+      race_name: r.raceName,
+      race_date: raceDate,
+      race_time: raceTime,
+    },
+    create: {
+      season_year: year,
+      round: parseInt(r.round, 10),
+      circuit_id: circuit.id,
+      race_name: r.raceName,
+      race_date: raceDate,
+      race_time: raceTime,
+      url: r.url || null,
+    },
+  });
+}
+
+/** Upsert full season calendar (scheduled + completed rounds) from Jolpica. */
+async function seedSeasonCalendar(year: number): Promise<void> {
+  console.log(`Seeding season calendar for ${year}...`);
+  const res = await fetch(`${JOLPICA_BASE}/${year}.json`);
+  const data = (await res.json()) as {
+    MRData: { RaceTable: { Races: Parameters<typeof upsertRaceFromJolpica>[1][] } };
+  };
+  const races = data.MRData.RaceTable.Races ?? [];
+  for (const r of races) {
+    await upsertRaceFromJolpica(year, r);
+  }
+  console.log(`Calendar synced: ${races.length} race(s) for ${year}.`);
+}
+
 async function seedRacesAndResults(year: number): Promise<void> {
   console.log(`Seeding races and results for ${year}...`);
   let offset = 0;
@@ -192,49 +264,7 @@ async function seedRacesAndResults(year: number): Promise<void> {
     if (!races || races.length === 0) break;
 
     for (const r of races) {
-      // 1. Find or create circuit
-      let circuit = await prisma.f1_circuits.findUnique({
-        where: { circuit_ref: r.Circuit.circuitId }
-      });
-      if (!circuit) {
-        circuit = await prisma.f1_circuits.create({
-          data: {
-            circuit_ref: r.Circuit.circuitId,
-            name: r.Circuit.circuitName,
-            location: r.Circuit.Location.locality,
-            country: r.Circuit.Location.country,
-            lat: parseFloat(r.Circuit.Location.lat),
-            lng: parseFloat(r.Circuit.Location.long),
-          }
-        });
-      }
-
-      // 2. Upsert race
-      const raceDate = new Date(r.date);
-      const raceTime = r.time ? new Date(`${r.date}T${r.time}`) : null;
-
-      const race = await prisma.f1_races.upsert({
-        where: {
-          season_year_round: {
-            season_year: year,
-            round: parseInt(r.round)
-          }
-        },
-        update: {
-          race_name: r.raceName,
-          race_date: raceDate,
-          race_time: raceTime,
-        },
-        create: {
-          season_year: year,
-          round: parseInt(r.round),
-          circuit_id: circuit.id,
-          race_name: r.raceName,
-          race_date: raceDate,
-          race_time: raceTime,
-          url: r.url || null
-        }
-      });
+      const race = await upsertRaceFromJolpica(year, r);
 
       // 3. Create active session of type 'R' (Race)
       let session = await prisma.f1_sessions.findFirst({
@@ -246,8 +276,8 @@ async function seedRacesAndResults(year: number): Promise<void> {
             race_id: race.id,
             session_type: "R",
             session_name: "Race",
-            date_start: raceDate,
-            date_end: raceDate,
+            date_start: race.race_date,
+            date_end: race.race_date,
           }
         });
       }
@@ -418,7 +448,7 @@ async function seedQualifyingResults(year: number): Promise<void> {
   }
 }
 
-export { seedQualifyingResults, seedRacesAndResults };
+export { seedQualifyingResults, seedRacesAndResults, seedSeasonCalendar };
 
 async function main() {
   try {

@@ -26,12 +26,13 @@ pnpm sync:season -- 2025
 ```
 
 This runs `packages/db/prisma/sync-latest.ts` which:
-1. Upserts race + qualifying results from Jolpica/Ergast API
-2. Seeds pit stops, laps, stints for completed rounds
-3. Recomputes championship standings
+1. Upserts the full season calendar from Jolpica (scheduled + completed rounds)
+2. Upserts race + qualifying results from Jolpica/Ergast API
+3. Seeds pit stops, laps, stints for completed rounds
+4. Recomputes championship standings
 
 ### Scheduled sync
 
-- **Cron (production):** run `pnpm sync:latest` daily or after each race (e.g. `0 3 * * 1` Monday 03:00 UTC)
-- **GitHub Actions:** see `.github/workflows/sync-race-data.yml` (manual + weekly schedule)
+- **Cron (production):** `packages/db/scripts/sync-latest-cron.sh` — hourly Fri–Mon UTC during race weekends, plus daily 18:00 UTC Sun
+- **GitHub Actions:** see `.github/workflows/sync-race-data.yml` (requires `DATABASE_URL` secret; manual + weekly Monday 04:00 UTC)
 - **Docker:** add a sidecar cron container calling the same script
