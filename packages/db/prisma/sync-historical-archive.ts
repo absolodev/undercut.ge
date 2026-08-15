@@ -3,8 +3,8 @@
  *
  * Populates:
  * 1. All-time World Champions (WDC + WCC) for f1_seasons (1950-2025)
- * 2. All-time Race Calendars, Sessions, and Results (1950-2019)
- * 3. All-time Qualifying Results (1950-2019)
+ * 2. All-time Race Calendars, Sessions, and Results (1950-2019) with full pagination
+ * 3. All-time Qualifying Results (1950-2019) with full pagination
  * 4. Active driver & constructor flags for the current season
  *
  * Usage:
@@ -18,7 +18,7 @@ import {
 } from "./seed-enrichment";
 
 const JOLPICA_BASE = "https://api.jolpi.ca/ergast/f1";
-const DELAY_MS = 150;
+const DELAY_MS = 120;
 
 async function delay(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));
@@ -138,7 +138,7 @@ async function syncAllSeasonChampions(): Promise<void> {
     try {
       const wdcRes = await fetch(`${JOLPICA_BASE}/${year}/driverStandings/1.json`);
       if (wdcRes.ok) {
-        const wdcData = await wdcRes.json() as any;
+        const wdcData = (await wdcRes.json()) as any;
         const standingList = wdcData.MRData?.StandingsTable?.StandingsLists?.[0];
         const topDriver = standingList?.DriverStandings?.[0]?.Driver;
         if (topDriver) {
@@ -158,7 +158,7 @@ async function syncAllSeasonChampions(): Promise<void> {
       try {
         const wccRes = await fetch(`${JOLPICA_BASE}/${year}/constructorStandings/1.json`);
         if (wccRes.ok) {
-          const wccData = await wccRes.json() as any;
+          const wccData = (await wccRes.json()) as any;
           const standingList = wccData.MRData?.StandingsTable?.StandingsLists?.[0];
           const topConstructor = standingList?.ConstructorStandings?.[0]?.Constructor;
           if (topConstructor) {
@@ -180,270 +180,293 @@ async function syncAllSeasonChampions(): Promise<void> {
 }
 
 /**
- * 2. Sync Historical Races, Sessions, Results & Entries (1950 - 2019)
+ * 2. Sync Historical Races, Sessions, Results & Entries (1950 - 2019) with Pagination
  */
 async function syncHistoricalRacesAndResults(): Promise<void> {
   console.log("\n=== 2. Syncing Historical Races & Results (1950 - 2019) ===");
 
   for (let year = 1950; year <= 2019; year++) {
     process.stdout.write(`Syncing ${year} results... `);
-    try {
-      const res = await fetch(`${JOLPICA_BASE}/${year}/results.json?limit=1000`);
-      if (!res.ok) {
-        console.log(`Failed HTTP ${res.status}`);
-        continue;
-      }
+    let offset = 0;
+    let total = 1;
+    const limit = 100;
+    let totalResultsInYear = 0;
+    let distinctRaces = 0;
 
-      const data = await res.json() as any;
-      const races = data.MRData?.RaceTable?.Races || [];
-
-      if (!races.length) {
-        console.log("No races found");
-        continue;
-      }
-
-      // Update total races for the season
-      await prisma.f1_seasons.upsert({
-        where: { year },
-        update: { total_races: races.length },
-        create: { year, total_races: races.length },
-      });
-
-      let totalResultsInYear = 0;
-
-      for (const r of races) {
-        const roundNum = parseInt(r.round, 10);
-        const circuit = await upsertCircuit({
-          circuitId: r.Circuit.circuitId,
-          circuitName: r.Circuit.circuitName,
-          Location: r.Circuit.Location,
-        });
-
-        const raceDate = new Date(r.date);
-        const raceTime = r.time ? new Date(`${r.date}T${r.time}`) : null;
-
-        const race = await prisma.f1_races.upsert({
-          where: {
-            season_year_round: {
-              season_year: year,
-              round: roundNum,
-            },
-          },
-          update: {
-            race_name: r.raceName,
-            race_date: raceDate,
-            race_time: raceTime,
-            circuit_id: circuit.id,
-            url: r.url || null,
-          },
-          create: {
-            season_year: year,
-            round: roundNum,
-            circuit_id: circuit.id,
-            race_name: r.raceName,
-            race_date: raceDate,
-            race_time: raceTime,
-            url: r.url || null,
-          },
-        });
-
-        // Ensure Race Session 'R'
-        let session = await prisma.f1_sessions.findFirst({
-          where: { race_id: race.id, session_type: "R" },
-        });
-        if (!session) {
-          session = await prisma.f1_sessions.create({
-            data: {
-              race_id: race.id,
-              session_type: "R",
-              session_name: "Race",
-              date_start: race.race_date,
-              date_end: race.race_date,
-            },
-          });
+    while (offset < total) {
+      try {
+        const res = await fetch(`${JOLPICA_BASE}/${year}/results.json?limit=${limit}&offset=${offset}`);
+        if (!res.ok) {
+          console.log(`Failed HTTP ${res.status}`);
+          break;
         }
 
-        // Process Results
-        const results = r.Results || [];
-        for (const resItem of results) {
-          const driver = await upsertDriver(resItem.Driver);
-          const constructor = await upsertConstructor(resItem.Constructor);
+        const data = (await res.json()) as any;
+        total = parseInt(data.MRData?.total, 10) || 0;
+        const races = data.MRData?.RaceTable?.Races || [];
 
-          const finishPos = resItem.position ? parseInt(resItem.position, 10) : null;
-          const gridPos = resItem.grid ? parseInt(resItem.grid, 10) : null;
-          const points = resItem.points ? parseFloat(resItem.points) : 0;
-          const laps = resItem.laps ? parseInt(resItem.laps, 10) : 0;
-          const isFastestLap = resItem.FastestLap?.rank === "1";
-          const carNum = resItem.number ? parseInt(resItem.number, 10) : null;
+        if (!races.length) break;
 
-          // Upsert race entry
-          if (carNum !== null && !Number.isNaN(carNum)) {
-            await prisma.f1_race_entries.upsert({
-              where: {
-                race_id_driver_id: {
+        for (const r of races) {
+          const roundNum = parseInt(r.round, 10);
+          const circuit = await upsertCircuit({
+            circuitId: r.Circuit.circuitId,
+            circuitName: r.Circuit.circuitName,
+            Location: r.Circuit.Location,
+          });
+
+          const raceDate = new Date(r.date);
+          const raceTime = r.time ? new Date(`${r.date}T${r.time}`) : null;
+
+          const race = await prisma.f1_races.upsert({
+            where: {
+              season_year_round: {
+                season_year: year,
+                round: roundNum,
+              },
+            },
+            update: {
+              race_name: r.raceName,
+              race_date: raceDate,
+              race_time: raceTime,
+              circuit_id: circuit.id,
+              url: r.url || null,
+            },
+            create: {
+              season_year: year,
+              round: roundNum,
+              circuit_id: circuit.id,
+              race_name: r.raceName,
+              race_date: raceDate,
+              race_time: raceTime,
+              url: r.url || null,
+            },
+          });
+
+          // Ensure Race Session 'R'
+          let session = await prisma.f1_sessions.findFirst({
+            where: { race_id: race.id, session_type: "R" },
+          });
+          if (!session) {
+            session = await prisma.f1_sessions.create({
+              data: {
+                race_id: race.id,
+                session_type: "R",
+                session_name: "Race",
+                date_start: race.race_date,
+                date_end: race.race_date,
+              },
+            });
+          }
+
+          // Process Results
+          const results = r.Results || [];
+          for (const resItem of results) {
+            const driver = await upsertDriver(resItem.Driver);
+            const constructor = await upsertConstructor(resItem.Constructor);
+
+            const finishPos = resItem.position ? parseInt(resItem.position, 10) : null;
+            const gridPos = resItem.grid ? parseInt(resItem.grid, 10) : null;
+            const points = resItem.points ? parseFloat(resItem.points) : 0;
+            const laps = resItem.laps ? parseInt(resItem.laps, 10) : 0;
+            const isFastestLap = resItem.FastestLap?.rank === "1";
+            const carNum = resItem.number ? parseInt(resItem.number, 10) : null;
+
+            // Upsert race entry
+            if (carNum !== null && !Number.isNaN(carNum)) {
+              await prisma.f1_race_entries.upsert({
+                where: {
+                  race_id_driver_id: {
+                    race_id: race.id,
+                    driver_id: driver.id,
+                  },
+                },
+                update: {
+                  constructor_id: constructor.id,
+                  car_number: carNum,
+                },
+                create: {
                   race_id: race.id,
+                  driver_id: driver.id,
+                  constructor_id: constructor.id,
+                  car_number: carNum,
+                },
+              });
+            }
+
+            // Upsert Result
+            await prisma.f1_results.upsert({
+              where: {
+                session_id_driver_id: {
+                  session_id: session.id,
                   driver_id: driver.id,
                 },
               },
               update: {
                 constructor_id: constructor.id,
-                car_number: carNum,
+                number: Number.isNaN(carNum) ? null : carNum,
+                grid_position: Number.isNaN(gridPos) ? null : gridPos,
+                finish_position: Number.isNaN(finishPos) ? null : finishPos,
+                position_text: resItem.positionText || null,
+                points,
+                laps,
+                status: resItem.status || null,
+                fastest_lap: isFastestLap,
+                time_str: resItem.Time?.time || null,
+                time_ms: resItem.Time?.millis ? parseInt(resItem.Time.millis, 10) : null,
               },
               create: {
-                race_id: race.id,
-                driver_id: driver.id,
-                constructor_id: constructor.id,
-                car_number: carNum,
-              },
-            });
-          }
-
-          // Upsert Result
-          await prisma.f1_results.upsert({
-            where: {
-              session_id_driver_id: {
                 session_id: session.id,
                 driver_id: driver.id,
+                constructor_id: constructor.id,
+                number: Number.isNaN(carNum) ? null : carNum,
+                grid_position: Number.isNaN(gridPos) ? null : gridPos,
+                finish_position: Number.isNaN(finishPos) ? null : finishPos,
+                position_text: resItem.positionText || null,
+                points,
+                laps,
+                status: resItem.status || null,
+                fastest_lap: isFastestLap,
+                time_str: resItem.Time?.time || null,
+                time_ms: resItem.Time?.millis ? parseInt(resItem.Time.millis, 10) : null,
               },
-            },
-            update: {
-              constructor_id: constructor.id,
-              number: Number.isNaN(carNum) ? null : carNum,
-              grid_position: Number.isNaN(gridPos) ? null : gridPos,
-              finish_position: Number.isNaN(finishPos) ? null : finishPos,
-              position_text: resItem.positionText || null,
-              points,
-              laps,
-              status: resItem.status || null,
-              fastest_lap: isFastestLap,
-              time_str: resItem.Time?.time || null,
-              time_ms: resItem.Time?.millis ? parseInt(resItem.Time.millis, 10) : null,
-            },
-            create: {
-              session_id: session.id,
-              driver_id: driver.id,
-              constructor_id: constructor.id,
-              number: Number.isNaN(carNum) ? null : carNum,
-              grid_position: Number.isNaN(gridPos) ? null : gridPos,
-              finish_position: Number.isNaN(finishPos) ? null : finishPos,
-              position_text: resItem.positionText || null,
-              points,
-              laps,
-              status: resItem.status || null,
-              fastest_lap: isFastestLap,
-              time_str: resItem.Time?.time || null,
-              time_ms: resItem.Time?.millis ? parseInt(resItem.Time.millis, 10) : null,
-            },
-          });
-          totalResultsInYear++;
+            });
+            totalResultsInYear++;
+          }
         }
-      }
 
-      console.log(`✓ ${races.length} races (${totalResultsInYear} results)`);
-    } catch (err) {
-      console.log(`Error:`, err);
+        offset += limit;
+        await delay(DELAY_MS);
+      } catch (err) {
+        console.log(`Error on ${year} offset ${offset}:`, err);
+        offset += limit;
+      }
     }
-    await delay(DELAY_MS);
+
+    distinctRaces = await prisma.f1_races.count({ where: { season_year: year } });
+    await prisma.f1_seasons.upsert({
+      where: { year },
+      update: { total_races: distinctRaces },
+      create: { year, total_races: distinctRaces },
+    });
+
+    console.log(`✓ ${distinctRaces} races (${totalResultsInYear} results)`);
   }
 }
 
 /**
- * 3. Sync Historical Qualifying Results (1950 - 2019)
+ * 3. Sync Historical Qualifying Results (1950 - 2019) with Pagination
  */
 async function syncHistoricalQualifying(): Promise<void> {
   console.log("\n=== 3. Syncing Historical Qualifying (1950 - 2019) ===");
 
   for (let year = 1950; year <= 2019; year++) {
-    try {
-      const res = await fetch(`${JOLPICA_BASE}/${year}/qualifying.json?limit=1000`);
-      if (!res.ok) continue;
+    let offset = 0;
+    let total = 1;
+    const limit = 100;
+    let count = 0;
+    let hasQualifying = false;
 
-      const data = await res.json() as any;
-      const races = data.MRData?.RaceTable?.Races || [];
-      if (!races.length) continue;
+    while (offset < total) {
+      try {
+        const res = await fetch(`${JOLPICA_BASE}/${year}/qualifying.json?limit=${limit}&offset=${offset}`);
+        if (!res.ok) break;
 
-      process.stdout.write(`Syncing ${year} qualifying (${races.length} races)... `);
-      let count = 0;
+        const data = (await res.json()) as any;
+        total = parseInt(data.MRData?.total, 10) || 0;
+        const races = data.MRData?.RaceTable?.Races || [];
+        if (!races.length) break;
 
-      for (const r of races) {
-        const roundNum = parseInt(r.round, 10);
-        const race = await prisma.f1_races.findUnique({
-          where: {
-            season_year_round: {
-              season_year: year,
-              round: roundNum,
-            },
-          },
-        });
-        if (!race) continue;
-
-        let session = await prisma.f1_sessions.findFirst({
-          where: { race_id: race.id, session_type: "Q" },
-        });
-        if (!session) {
-          session = await prisma.f1_sessions.create({
-            data: {
-              race_id: race.id,
-              session_type: "Q",
-              session_name: "Qualifying",
-              date_start: race.race_date,
-              date_end: race.race_date,
-            },
-          });
+        if (!hasQualifying) {
+          process.stdout.write(`Syncing ${year} qualifying... `);
+          hasQualifying = true;
         }
 
-        const qualifyingResults = r.QualifyingResults || [];
-        for (const qr of qualifyingResults) {
-          const driver = await upsertDriver(qr.Driver);
-          const constructor = await upsertConstructor(qr.Constructor);
-
-          const pos = qr.position ? parseInt(qr.position, 10) : null;
-          const num = qr.number ? parseInt(qr.number, 10) : null;
-          const q1 = parseQualifyingTimeToMs(qr.Q1);
-          const q2 = parseQualifyingTimeToMs(qr.Q2);
-          const q3 = parseQualifyingTimeToMs(qr.Q3);
-
-          await prisma.f1_qualifying_results.upsert({
+        for (const r of races) {
+          const roundNum = parseInt(r.round, 10);
+          const race = await prisma.f1_races.findUnique({
             where: {
-              session_id_driver_id: {
-                session_id: session.id,
-                driver_id: driver.id,
+              season_year_round: {
+                season_year: year,
+                round: roundNum,
               },
             },
-            update: {
-              constructor_id: constructor.id,
-              number: Number.isNaN(num) ? null : num,
-              position: Number.isNaN(pos) ? null : pos,
-              q1_time_ms: q1,
-              q2_time_ms: q2,
-              q3_time_ms: q3,
-            },
-            create: {
-              session_id: session.id,
-              driver_id: driver.id,
-              constructor_id: constructor.id,
-              number: Number.isNaN(num) ? null : num,
-              position: Number.isNaN(pos) ? null : pos,
-              q1_time_ms: q1,
-              q2_time_ms: q2,
-              q3_time_ms: q3,
-            },
           });
-          count++;
+          if (!race) continue;
+
+          let session = await prisma.f1_sessions.findFirst({
+            where: { race_id: race.id, session_type: "Q" },
+          });
+          if (!session) {
+            session = await prisma.f1_sessions.create({
+              data: {
+                race_id: race.id,
+                session_type: "Q",
+                session_name: "Qualifying",
+                date_start: race.race_date,
+                date_end: race.race_date,
+              },
+            });
+          }
+
+          const qualifyingResults = r.QualifyingResults || [];
+          for (const qr of qualifyingResults) {
+            const driver = await upsertDriver(qr.Driver);
+            const constructor = await upsertConstructor(qr.Constructor);
+
+            const pos = qr.position ? parseInt(qr.position, 10) : null;
+            const num = qr.number ? parseInt(qr.number, 10) : null;
+            const q1 = parseQualifyingTimeToMs(qr.Q1);
+            const q2 = parseQualifyingTimeToMs(qr.Q2);
+            const q3 = parseQualifyingTimeToMs(qr.Q3);
+
+            await prisma.f1_qualifying_results.upsert({
+              where: {
+                session_id_driver_id: {
+                  session_id: session.id,
+                  driver_id: driver.id,
+                },
+              },
+              update: {
+                constructor_id: constructor.id,
+                number: Number.isNaN(num) ? null : num,
+                position: Number.isNaN(pos) ? null : pos,
+                q1_time_ms: q1,
+                q2_time_ms: q2,
+                q3_time_ms: q3,
+              },
+              create: {
+                session_id: session.id,
+                driver_id: driver.id,
+                constructor_id: constructor.id,
+                number: Number.isNaN(num) ? null : num,
+                position: Number.isNaN(pos) ? null : pos,
+                q1_time_ms: q1,
+                q2_time_ms: q2,
+                q3_time_ms: q3,
+              },
+            });
+            count++;
+          }
         }
+
+        offset += limit;
+        await delay(DELAY_MS);
+      } catch (err) {
+        offset += limit;
       }
-      console.log(`✓ (${count} results)`);
-    } catch (err) {
-      console.log(`Error on ${year} qualifying:`, err);
     }
-    await delay(DELAY_MS);
+
+    if (hasQualifying) {
+      console.log(`✓ (${count} results)`);
+    }
   }
 }
 
 async function main() {
   console.log("🏁 Starting Full F1 Historical Data Sync (1950 - 2026)");
 
-  // 1. All-time World Champions
+  // 1. All-time World Champions (1950 - 2025)
   await syncAllSeasonChampions();
 
   // 2. All-time Race Results (1950 - 2019)
