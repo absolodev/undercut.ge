@@ -21,7 +21,7 @@ export async function TeammateH2H({ driverId }: TeammateH2HProps) {
         <div>
           <h2 className="font-display text-2xl font-bold">Teammate Head-to-Head</h2>
           <p className="text-white/50 font-mono text-xs mt-0.5">
-            Direct comparison against teammates across {teammates.length} driver pairings ({totalTeammateRaces} total races)
+            Direct comparison against teammates in equal machinery ({teammates.length} pairings · {totalTeammateRaces} total races). Format: <span className="text-white/80 font-bold">[This Driver]</span> vs <span className="text-white/50">[Teammate]</span>.
           </p>
         </div>
       </div>
@@ -34,8 +34,12 @@ export async function TeammateH2H({ driverId }: TeammateH2HProps) {
                 <th className="p-3.5 pl-5">Teammate</th>
                 <th className="p-3.5">Team & Era</th>
                 <th className="p-3.5 text-center">GPs</th>
-                <th className="p-3.5 text-center">Races (Ahead)</th>
-                <th className="p-3.5 text-center">Qualifying</th>
+                <th className="p-3.5 text-center" title="How many times this driver finished ahead of their teammate in races">
+                  Race Finish H2H
+                </th>
+                <th className="p-3.5 text-center" title="How many times this driver outqualified their teammate">
+                  Qualifying H2H
+                </th>
                 <th className="p-3.5 text-center">Wins</th>
                 <th className="p-3.5 text-center">Podiums</th>
                 <th className="p-3.5 text-right pr-5">Points</th>
@@ -86,7 +90,7 @@ export async function TeammateH2H({ driverId }: TeammateH2HProps) {
                       {item.races_together}
                     </td>
 
-                    <td className="p-3.5">
+                    <td className="p-3.5" title={`Finished ahead ${item.races_ahead} times vs ${item.races_behind} times behind`}>
                       <div className="flex flex-col items-center gap-1">
                         <div className="flex items-center gap-2 text-xs">
                           <span
@@ -108,7 +112,7 @@ export async function TeammateH2H({ driverId }: TeammateH2HProps) {
                           </span>
                         </div>
                         {totalRacesFinished > 0 && (
-                          <div className="w-20 bg-white/10 h-1.5 rounded-full overflow-hidden flex">
+                          <div className="w-20 bg-white/10 h-1.5 rounded-full overflow-hidden flex" title={`${raceWinPct}% ahead in races`}>
                             <div
                               className="bg-[#E10600] h-full"
                               style={{ width: `${raceWinPct}%` }}
@@ -122,7 +126,7 @@ export async function TeammateH2H({ driverId }: TeammateH2HProps) {
                       </div>
                     </td>
 
-                    <td className="p-3.5 text-center">
+                    <td className="p-3.5 text-center" title={`Outqualified teammate ${item.quali_ahead} times vs ${item.quali_behind} times`}>
                       <span
                         className={`font-bold ${
                           isLeaderInQuali ? "text-emerald-400" : "text-white/70"
