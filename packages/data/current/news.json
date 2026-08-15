@@ -1,26 +1,37 @@
 [
   {
-    "date": "2026-01-15",
-    "category": "Regulations",
-    "title": "2026 power unit rules in effect",
-    "summary": "Fully sustainable fuels and revised energy deployment limits apply from this season. Teams must balance electrical and combustion output across each lap."
+    "date": "2026-08-15",
+    "category": "F1 2026",
+    "title": "Verstappen targets Red Bull upgrades for post-summer break charge",
+    "summary": "Max Verstappen and Red Bull Racing have shifted development focus toward low-speed balance improvements ahead of the Dutch Grand Prix at Zandvoort.",
+    "source": "F1 News"
   },
   {
-    "date": "2026-02-01",
-    "category": "Grid",
-    "title": "Driver line-up changes",
-    "summary": "Several teams confirmed new driver pairings for 2026. Check the Drivers page for the full season grid once entries are published."
+    "date": "2026-08-14",
+    "category": "Championship",
+    "title": "Antonelli and Mercedes lead standings into summer shutdown",
+    "summary": "Rookie sensation Andrea Kimi Antonelli holds the Drivers' Championship lead over Lewis Hamilton and Lando Norris following a dominant first half of the season.",
+    "source": "F1 News"
   },
   {
-    "date": "2026-02-20",
-    "category": "Technical",
-    "title": "Floor and wing adjustments",
-    "summary": "Aero regulations were tweaked to reduce dirty air. Expect closer racing in the first races as teams adapt setup windows."
+    "date": "2026-08-12",
+    "category": "Paddock",
+    "title": "Cadillac confirms management restructure ahead of 2027 engine plans",
+    "summary": "Former Alpine boss Marcin Budkowski takes the helm as team principal as Cadillac strengthens its technical operations.",
+    "source": "F1 News"
   },
   {
-    "date": "2026-03-01",
-    "category": "UnderCut",
-    "title": "Live console coverage",
-    "summary": "UnderCut live timing activates automatically during session weekends. Standings and results update after each race is classified."
+    "date": "2026-08-08",
+    "category": "Ferrari",
+    "title": "Hamilton and Leclerc close gap in Constructors' battle",
+    "summary": "Scuderia Ferrari brings a revised rear diffuser and floor edge package that delivered strong qualifying pace across the European leg.",
+    "source": "F1 News"
+  },
+  {
+    "date": "2026-08-01",
+    "category": "McLaren",
+    "title": "McLaren evaluates high-downforce packages for Spa and Monza",
+    "summary": "Lando Norris and Oscar Piastri remain in close pursuit of the championship leaders with planned aerodynamic updates.",
+    "source": "F1 News"
   }
 ]

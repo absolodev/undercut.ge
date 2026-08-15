@@ -1,4 +1,4 @@
-import type { f1_circuits } from "@prisma/client";
+import type { f1_circuits } from "@pitwall/db";
 import { prisma } from "@pitwall/db";
 
 export async function getAllCircuits(): Promise<f1_circuits[]> {

@@ -196,8 +196,98 @@ export async function getRecentRaceResults(seasonYear: number = CURRENT_SEASON, 
   });
 }
 
-export async function getSeasonNews() {
-  return newsItems;
+export interface SeasonNewsItem {
+  date: string;
+  category: string;
+  title: string;
+  summary: string;
+  url?: string;
+  source?: string;
+  imageUrl?: string;
+}
+
+export async function getSeasonNews(): Promise<SeasonNewsItem[]> {
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 2500);
+
+    const res = await fetch("https://www.autosport.com/rss/f1/news/", {
+      signal: controller.signal,
+      next: { revalidate: 1800 },
+    });
+    clearTimeout(timeout);
+
+    if (res.ok) {
+      const text = await res.text();
+      const items: SeasonNewsItem[] = [];
+      const itemRegex = /<item>([\s\S]*?)<\/item>/g;
+      let match: RegExpExecArray | null;
+
+      while ((match = itemRegex.exec(text)) !== null && items.length < 5) {
+        const itemXml = match[1];
+        const titleMatch =
+          itemXml.match(/<title><!\[CDATA\[([\s\S]*?)\]\]><\/title>/) ||
+          itemXml.match(/<title>([\s\S]*?)<\/title>/);
+        const linkMatch =
+          itemXml.match(/<link><!\[CDATA\[([\s\S]*?)\]\]><\/link>/) ||
+          itemXml.match(/<link>([\s\S]*?)<\/link>/);
+        const descMatch =
+          itemXml.match(/<description><!\[CDATA\[([\s\S]*?)\]\]><\/description>/) ||
+          itemXml.match(/<description>([\s\S]*?)<\/description>/);
+        const dateMatch = itemXml.match(/<pubDate>(.*?)<\/pubDate>/);
+        const categoryMatch =
+          itemXml.match(/<category><!\[CDATA\[([\s\S]*?)\]\]><\/category>/) ||
+          itemXml.match(/<category>([\s\S]*?)<\/category>/);
+        const imgMatch =
+          itemXml.match(/<enclosure[^>]+url="([^"]+)"/) ||
+          itemXml.match(/<media:thumbnail[^>]+url="([^"]+)"/);
+
+        let cleanDesc = (descMatch ? descMatch[1] : "")
+          .replace(/<[^>]*>/g, "")
+          .replace(/&amp;/g, "&")
+          .replace(/&quot;/g, '"')
+          .replace(/&#39;/g, "'")
+          .replace(/&lt;/g, "<")
+          .replace(/&gt;/g, ">")
+          .replace(/Keep reading/g, "")
+          .trim();
+
+        if (cleanDesc.length > 170) {
+          cleanDesc = `${cleanDesc.substring(0, 170)}...`;
+        }
+
+        const title = (titleMatch ? titleMatch[1] : "")
+          .replace(/<!\[CDATA\[/g, "")
+          .replace(/\]\]>/g, "")
+          .replace(/&amp;/g, "&")
+          .replace(/&quot;/g, '"')
+          .replace(/&#39;/g, "'")
+          .trim();
+
+        if (title) {
+          items.push({
+            title,
+            category: categoryMatch ? categoryMatch[1].trim() : "Formula 1",
+            url: linkMatch ? linkMatch[1].trim() : undefined,
+            summary: cleanDesc,
+            date: dateMatch
+              ? new Date(dateMatch[1]).toISOString().split("T")[0]
+              : new Date().toISOString().split("T")[0],
+            source: "Autosport",
+            imageUrl: imgMatch ? imgMatch[1] : undefined,
+          });
+        }
+      }
+
+      if (items.length > 0) {
+        return items;
+      }
+    }
+  } catch {
+    // Fallback to static bundled news
+  }
+
+  return newsItems as SeasonNewsItem[];
 }
 
 export async function getCurrentSeasonRecord() {

@@ -70,14 +70,6 @@ export function SiteNav({ variant = "default" }: { variant?: "default" | "compac
 
       <div className="hidden md:flex items-center gap-2">
         <LanguageSwitcher />
-        <Link
-          href="/live"
-          className={`text-xs font-mono bg-[#E10600] text-white px-3 py-2 rounded hover:bg-[#ff1a1a] transition-colors shrink-0 min-h-[44px] flex items-center ${
-            pathname === "/live" ? "ring-2 ring-white/30" : ""
-          }`}
-        >
-          {t("liveConsole")}
-        </Link>
       </div>
 
       <button
@@ -96,13 +88,6 @@ export function SiteNav({ variant = "default" }: { variant?: "default" | "compac
             {navLinks}
             <div className="pt-3 mt-2 border-t border-white/10 flex flex-col gap-3">
               <LanguageSwitcher />
-              <Link
-                href="/live"
-                onClick={() => setMobileOpen(false)}
-                className="text-xs font-mono bg-[#E10600] text-white px-3 py-2.5 rounded text-center min-h-[44px] flex items-center justify-center"
-              >
-                {t("liveConsole")}
-              </Link>
             </div>
           </nav>
         </div>

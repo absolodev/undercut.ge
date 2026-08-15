@@ -22,7 +22,7 @@
   },
   "Home": {
     "seasonLabel": "TEMPORADA {year}",
-    "title": "Panel UnderCut",
+    "title": "Resumen de la Temporada",
     "subtitle": "Clasificaciones, próximas carreras y lo más destacado de la temporada",
     "nextRace": "Próxima carrera",
     "raceDetails": "DETALLES DE LA CARRERA →",
