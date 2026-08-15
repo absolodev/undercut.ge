@@ -1,14 +1,10 @@
 /**
  * Comprehensive F1 Historical Archive Syncer (1950 - 2025).
  *
- * Populates:
- * 1. All-time World Champions (WDC + WCC) for f1_seasons (1950-2025)
- * 2. All-time Race Calendars, Sessions, and Results (1950-2019) with full pagination
- * 3. All-time Qualifying Results (1950-2019) with full pagination
- * 4. Active driver & constructor flags for the current season
- *
- * Usage:
- *   pnpm --filter @pitwall/db exec tsx prisma/sync-historical-archive.ts
+ * 1. Populates All-Time World Champions (WDC + WCC) for f1_seasons (1950-2025)
+ * 2. Populates missing historical race results (1950-2012)
+ * 3. Populates missing qualifying results (1950-2012)
+ * 4. Refreshes active driver & constructor flags
  */
 import { prisma } from "../src/index";
 import {
@@ -18,19 +14,105 @@ import {
 } from "./seed-enrichment";
 
 const JOLPICA_BASE = "https://api.jolpi.ca/ergast/f1";
-const BASE_DELAY_MS = 350;
+const DELAY_MS = 600;
 
 async function delay(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));
 }
 
-async function fetchWithRetry(url: string, maxRetries = 6): Promise<any | null> {
+// Complete verified historical records of Formula 1 World Champions (1950 - 2025)
+const HISTORICAL_CHAMPIONS: Array<{
+  year: number;
+  driver_ref: string;
+  driver_name: string;
+  constructor_ref?: string;
+  constructor_name?: string;
+}> = [
+  { year: 1950, driver_ref: "farina", driver_name: "Giuseppe Farina" },
+  { year: 1951, driver_ref: "fangio", driver_name: "Juan Manuel Fangio" },
+  { year: 1952, driver_ref: "ascari", driver_name: "Alberto Ascari" },
+  { year: 1953, driver_ref: "ascari", driver_name: "Alberto Ascari" },
+  { year: 1954, driver_ref: "fangio", driver_name: "Juan Manuel Fangio" },
+  { year: 1955, driver_ref: "fangio", driver_name: "Juan Manuel Fangio" },
+  { year: 1956, driver_ref: "fangio", driver_name: "Juan Manuel Fangio" },
+  { year: 1957, driver_ref: "fangio", driver_name: "Juan Manuel Fangio" },
+  { year: 1958, driver_ref: "hawthorn", driver_name: "Mike Hawthorn", constructor_ref: "vanwall", constructor_name: "Vanwall" },
+  { year: 1959, driver_ref: "jack_brabham", driver_name: "Jack Brabham", constructor_ref: "cooper", constructor_name: "Cooper" },
+  { year: 1960, driver_ref: "jack_brabham", driver_name: "Jack Brabham", constructor_ref: "cooper", constructor_name: "Cooper" },
+  { year: 1961, driver_ref: "phil_hill", driver_name: "Phil Hill", constructor_ref: "ferrari", constructor_name: "Ferrari" },
+  { year: 1962, driver_ref: "graham_hill", driver_name: "Graham Hill", constructor_ref: "brm", constructor_name: "BRM" },
+  { year: 1963, driver_ref: "clark", driver_name: "Jim Clark", constructor_ref: "team_lotus", constructor_name: "Lotus" },
+  { year: 1964, driver_ref: "surtees", driver_name: "John Surtees", constructor_ref: "ferrari", constructor_name: "Ferrari" },
+  { year: 1965, driver_ref: "clark", driver_name: "Jim Clark", constructor_ref: "team_lotus", constructor_name: "Lotus" },
+  { year: 1966, driver_ref: "jack_brabham", driver_name: "Jack Brabham", constructor_ref: "brabham", constructor_name: "Brabham" },
+  { year: 1967, driver_ref: "hulme", driver_name: "Denny Hulme", constructor_ref: "brabham", constructor_name: "Brabham" },
+  { year: 1968, driver_ref: "graham_hill", driver_name: "Graham Hill", constructor_ref: "team_lotus", constructor_name: "Lotus" },
+  { year: 1969, driver_ref: "stewart", driver_name: "Jackie Stewart", constructor_ref: "matra", constructor_name: "Matra" },
+  { year: 1970, driver_ref: "rindt", driver_name: "Jochen Rindt", constructor_ref: "team_lotus", constructor_name: "Lotus" },
+  { year: 1971, driver_ref: "stewart", driver_name: "Jackie Stewart", constructor_ref: "tyrrell", constructor_name: "Tyrrell" },
+  { year: 1972, driver_ref: "emerson_fittipaldi", driver_name: "Emerson Fittipaldi", constructor_ref: "team_lotus", constructor_name: "Lotus" },
+  { year: 1973, driver_ref: "stewart", driver_name: "Jackie Stewart", constructor_ref: "team_lotus", constructor_name: "Lotus" },
+  { year: 1974, driver_ref: "emerson_fittipaldi", driver_name: "Emerson Fittipaldi", constructor_ref: "mclaren", constructor_name: "McLaren" },
+  { year: 1975, driver_ref: "lauda", driver_name: "Niki Lauda", constructor_ref: "ferrari", constructor_name: "Ferrari" },
+  { year: 1976, driver_ref: "hunt", driver_name: "James Hunt", constructor_ref: "ferrari", constructor_name: "Ferrari" },
+  { year: 1977, driver_ref: "lauda", driver_name: "Niki Lauda", constructor_ref: "ferrari", constructor_name: "Ferrari" },
+  { year: 1978, driver_ref: "mario_andretti", driver_name: "Mario Andretti", constructor_ref: "team_lotus", constructor_name: "Lotus" },
+  { year: 1979, driver_ref: "scheckter", driver_name: "Jody Scheckter", constructor_ref: "ferrari", constructor_name: "Ferrari" },
+  { year: 1980, driver_ref: "alan_jones", driver_name: "Alan Jones", constructor_ref: "williams", constructor_name: "Williams" },
+  { year: 1981, driver_ref: "piquet", driver_name: "Nelson Piquet", constructor_ref: "williams", constructor_name: "Williams" },
+  { year: 1982, driver_ref: "keke_rosberg", driver_name: "Keke Rosberg", constructor_ref: "ferrari", constructor_name: "Ferrari" },
+  { year: 1983, driver_ref: "piquet", driver_name: "Nelson Piquet", constructor_ref: "ferrari", constructor_name: "Ferrari" },
+  { year: 1984, driver_ref: "lauda", driver_name: "Niki Lauda", constructor_ref: "mclaren", constructor_name: "McLaren" },
+  { year: 1985, driver_ref: "prost", driver_name: "Alain Prost", constructor_ref: "mclaren", constructor_name: "McLaren" },
+  { year: 1986, driver_ref: "prost", driver_name: "Alain Prost", constructor_ref: "williams", constructor_name: "Williams" },
+  { year: 1987, driver_ref: "piquet", driver_name: "Nelson Piquet", constructor_ref: "williams", constructor_name: "Williams" },
+  { year: 1988, driver_ref: "senna", driver_name: "Ayrton Senna", constructor_ref: "mclaren", constructor_name: "McLaren" },
+  { year: 1989, driver_ref: "prost", driver_name: "Alain Prost", constructor_ref: "mclaren", constructor_name: "McLaren" },
+  { year: 1990, driver_ref: "senna", driver_name: "Ayrton Senna", constructor_ref: "mclaren", constructor_name: "McLaren" },
+  { year: 1991, driver_ref: "senna", driver_name: "Ayrton Senna", constructor_ref: "mclaren", constructor_name: "McLaren" },
+  { year: 1992, driver_ref: "mansell", driver_name: "Nigel Mansell", constructor_ref: "williams", constructor_name: "Williams" },
+  { year: 1993, driver_ref: "prost", driver_name: "Alain Prost", constructor_ref: "williams", constructor_name: "Williams" },
+  { year: 1994, driver_ref: "michael_schumacher", driver_name: "Michael Schumacher", constructor_ref: "williams", constructor_name: "Williams" },
+  { year: 1995, driver_ref: "michael_schumacher", driver_name: "Michael Schumacher", constructor_ref: "benetton", constructor_name: "Benetton" },
+  { year: 1996, driver_ref: "damon_hill", driver_name: "Damon Hill", constructor_ref: "williams", constructor_name: "Williams" },
+  { year: 1997, driver_ref: "villeneuve", driver_name: "Jacques Villeneuve", constructor_ref: "williams", constructor_name: "Williams" },
+  { year: 1998, driver_ref: "hakkinen", driver_name: "Mika Häkkinen", constructor_ref: "mclaren", constructor_name: "McLaren" },
+  { year: 1999, driver_ref: "hakkinen", driver_name: "Mika Häkkinen", constructor_ref: "ferrari", constructor_name: "Ferrari" },
+  { year: 2000, driver_ref: "michael_schumacher", driver_name: "Michael Schumacher", constructor_ref: "ferrari", constructor_name: "Ferrari" },
+  { year: 2001, driver_ref: "michael_schumacher", driver_name: "Michael Schumacher", constructor_ref: "ferrari", constructor_name: "Ferrari" },
+  { year: 2002, driver_ref: "michael_schumacher", driver_name: "Michael Schumacher", constructor_ref: "ferrari", constructor_name: "Ferrari" },
+  { year: 2003, driver_ref: "michael_schumacher", driver_name: "Michael Schumacher", constructor_ref: "ferrari", constructor_name: "Ferrari" },
+  { year: 2004, driver_ref: "michael_schumacher", driver_name: "Michael Schumacher", constructor_ref: "ferrari", constructor_name: "Ferrari" },
+  { year: 2005, driver_ref: "alonso", driver_name: "Fernando Alonso", constructor_ref: "renault", constructor_name: "Renault" },
+  { year: 2006, driver_ref: "alonso", driver_name: "Fernando Alonso", constructor_ref: "renault", constructor_name: "Renault" },
+  { year: 2007, driver_ref: "raikkonen", driver_name: "Kimi Räikkönen", constructor_ref: "ferrari", constructor_name: "Ferrari" },
+  { year: 2008, driver_ref: "hamilton", driver_name: "Lewis Hamilton", constructor_ref: "ferrari", constructor_name: "Ferrari" },
+  { year: 2009, driver_ref: "button", driver_name: "Jenson Button", constructor_ref: "brawn", constructor_name: "Brawn" },
+  { year: 2010, driver_ref: "vettel", driver_name: "Sebastian Vettel", constructor_ref: "red_bull", constructor_name: "Red Bull" },
+  { year: 2011, driver_ref: "vettel", driver_name: "Sebastian Vettel", constructor_ref: "red_bull", constructor_name: "Red Bull" },
+  { year: 2012, driver_ref: "vettel", driver_name: "Sebastian Vettel", constructor_ref: "red_bull", constructor_name: "Red Bull" },
+  { year: 2013, driver_ref: "vettel", driver_name: "Sebastian Vettel", constructor_ref: "red_bull", constructor_name: "Red Bull" },
+  { year: 2014, driver_ref: "hamilton", driver_name: "Lewis Hamilton", constructor_ref: "mercedes", constructor_name: "Mercedes" },
+  { year: 2015, driver_ref: "hamilton", driver_name: "Lewis Hamilton", constructor_ref: "mercedes", constructor_name: "Mercedes" },
+  { year: 2016, driver_ref: "rosberg", driver_name: "Nico Rosberg", constructor_ref: "mercedes", constructor_name: "Mercedes" },
+  { year: 2017, driver_ref: "hamilton", driver_name: "Lewis Hamilton", constructor_ref: "mercedes", constructor_name: "Mercedes" },
+  { year: 2018, driver_ref: "hamilton", driver_name: "Lewis Hamilton", constructor_ref: "mercedes", constructor_name: "Mercedes" },
+  { year: 2019, driver_ref: "hamilton", driver_name: "Lewis Hamilton", constructor_ref: "mercedes", constructor_name: "Mercedes" },
+  { year: 2020, driver_ref: "hamilton", driver_name: "Lewis Hamilton", constructor_ref: "mercedes", constructor_name: "Mercedes" },
+  { year: 2021, driver_ref: "max_verstappen", driver_name: "Max Verstappen", constructor_ref: "mercedes", constructor_name: "Mercedes" },
+  { year: 2022, driver_ref: "max_verstappen", driver_name: "Max Verstappen", constructor_ref: "red_bull", constructor_name: "Red Bull" },
+  { year: 2023, driver_ref: "max_verstappen", driver_name: "Max Verstappen", constructor_ref: "red_bull", constructor_name: "Red Bull" },
+  { year: 2024, driver_ref: "max_verstappen", driver_name: "Max Verstappen", constructor_ref: "mclaren", constructor_name: "McLaren" },
+  { year: 2025, driver_ref: "norris", driver_name: "Lando Norris", constructor_ref: "mclaren", constructor_name: "McLaren" },
+];
+
+async function fetchWithRetry(url: string, maxRetries = 5): Promise<any | null> {
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
       const res = await fetch(url);
       if (res.status === 429) {
-        const waitMs = attempt * 2500;
-        process.stdout.write(` [429 retry in ${waitMs}ms] `);
+        const waitMs = attempt * 3000;
+        process.stdout.write(` [rate-limited, waiting ${waitMs}ms] `);
         await delay(waitMs);
         continue;
       }
@@ -43,7 +125,7 @@ async function fetchWithRetry(url: string, maxRetries = 6): Promise<any | null> 
         console.error(`\nFetch failed after ${maxRetries} attempts for ${url}:`, err);
         return null;
       }
-      await delay(attempt * 1500);
+      await delay(attempt * 2000);
     }
   }
   return null;
@@ -149,49 +231,58 @@ async function upsertCircuit(c: {
  */
 async function syncAllSeasonChampions(): Promise<void> {
   console.log("\n=== 1. Syncing World Champions (1950 - 2025) ===");
-  const currentYear = new Date().getFullYear();
 
-  for (let year = 1950; year <= currentYear; year++) {
-    // Ensure season record exists
-    await prisma.f1_seasons.upsert({
-      where: { year },
-      update: {},
-      create: { year },
+  for (const champ of HISTORICAL_CHAMPIONS) {
+    let driver = await prisma.f1_drivers.findUnique({
+      where: { driver_ref: champ.driver_ref },
     });
+    if (!driver) {
+      const parts = champ.driver_name.split(" ");
+      driver = await prisma.f1_drivers.create({
+        data: {
+          driver_ref: champ.driver_ref,
+          broadcast_name: champ.driver_ref.substring(0, 3).toUpperCase(),
+          first_name: parts[0],
+          last_name: parts.slice(1).join(" "),
+          full_name: champ.driver_name,
+          is_active: false,
+        },
+      });
+    }
 
-    // Fetch WDC
-    const wdcData = await fetchWithRetry(`${JOLPICA_BASE}/${year}/driverStandings/1.json`);
-    if (wdcData) {
-      const standingList = wdcData.MRData?.StandingsTable?.StandingsLists?.[0];
-      const topDriver = standingList?.DriverStandings?.[0]?.Driver;
-      if (topDriver) {
-        const driver = await upsertDriver(topDriver);
-        await prisma.f1_seasons.update({
-          where: { year },
-          data: { champion_driver_id: driver.id },
+    let constructorId: number | null = null;
+    if (champ.constructor_ref) {
+      let team = await prisma.f1_constructors.findUnique({
+        where: { constructor_ref: champ.constructor_ref },
+      });
+      if (!team) {
+        team = await prisma.f1_constructors.create({
+          data: {
+            constructor_ref: champ.constructor_ref,
+            name: champ.constructor_name || champ.constructor_ref,
+            full_name: champ.constructor_name || champ.constructor_ref,
+            color_primary: "#FFFFFF",
+            is_active: false,
+          },
         });
       }
+      constructorId = team.id;
     }
-    await delay(BASE_DELAY_MS);
 
-    // Fetch WCC (Constructors Championship started in 1958)
-    if (year >= 1958) {
-      const wccData = await fetchWithRetry(`${JOLPICA_BASE}/${year}/constructorStandings/1.json`);
-      if (wccData) {
-        const standingList = wccData.MRData?.StandingsTable?.StandingsLists?.[0];
-        const topConstructor = standingList?.ConstructorStandings?.[0]?.Constructor;
-        if (topConstructor) {
-          const constructor = await upsertConstructor(topConstructor);
-          await prisma.f1_seasons.update({
-            where: { year },
-            data: { champion_constructor_id: constructor.id },
-          });
-        }
-      }
-      await delay(BASE_DELAY_MS);
-    }
+    await prisma.f1_seasons.upsert({
+      where: { year: champ.year },
+      update: {
+        champion_driver_id: driver.id,
+        champion_constructor_id: constructorId,
+      },
+      create: {
+        year: champ.year,
+        champion_driver_id: driver.id,
+        champion_constructor_id: constructorId,
+      },
+    });
   }
-  console.log("✓ World Champions synced for 1950 - 2025");
+  console.log(`✓ Seeded ${HISTORICAL_CHAMPIONS.length} World Championship seasons`);
 }
 
 /**
@@ -201,6 +292,21 @@ async function syncHistoricalRacesAndResults(): Promise<void> {
   console.log("\n=== 2. Syncing Historical Races & Results (1950 - 2019) ===");
 
   for (let year = 1950; year <= 2019; year++) {
+    // Check if season is already fully populated
+    const existingCount = await prisma.f1_results.count({
+      where: {
+        session: {
+          race: { season_year: year },
+          session_type: "R",
+        },
+      },
+    });
+
+    if (existingCount > 50) {
+      console.log(`Skipping ${year}: already has ${existingCount} results in DB.`);
+      continue;
+    }
+
     process.stdout.write(`Syncing ${year} results... `);
     let offset = 0;
     let total = 1;
@@ -345,7 +451,7 @@ async function syncHistoricalRacesAndResults(): Promise<void> {
       }
 
       offset += limit;
-      await delay(BASE_DELAY_MS);
+      await delay(DELAY_MS);
     }
 
     distinctRaces = await prisma.f1_races.count({ where: { season_year: year } });
@@ -366,6 +472,20 @@ async function syncHistoricalQualifying(): Promise<void> {
   console.log("\n=== 3. Syncing Historical Qualifying (1950 - 2019) ===");
 
   for (let year = 1950; year <= 2019; year++) {
+    const existingQCount = await prisma.f1_qualifying_results.count({
+      where: {
+        session: {
+          race: { season_year: year },
+          session_type: "Q",
+        },
+      },
+    });
+
+    if (existingQCount > 50) {
+      console.log(`Skipping ${year} qualifying: already has ${existingQCount} in DB.`);
+      continue;
+    }
+
     let offset = 0;
     let total = 1;
     const limit = 100;
@@ -454,7 +574,7 @@ async function syncHistoricalQualifying(): Promise<void> {
       }
 
       offset += limit;
-      await delay(BASE_DELAY_MS);
+      await delay(DELAY_MS);
     }
 
     if (hasQualifying) {
