@@ -11,26 +11,31 @@ import { prisma } from "../src/index";
 import { seedRacesAndResults, seedQualifyingResults, seedSeasonCalendar } from "./seed";
 import { seedSessionDetailsForYear } from "./seed-session-details";
 import { seedStandingsForYear } from "./seed-standings";
+import { seedConstructorLogos, syncDriverActiveFlags } from "./seed-enrichment";
 
 const year = parseInt(process.argv[2] ?? process.env.CURRENT_SEASON ?? String(new Date().getFullYear()), 10);
 
 async function syncSeason(targetYear: number): Promise<void> {
   console.log(`\n=== UnderCut sync: ${targetYear} ===\n`);
 
-  console.log("1/5 Season calendar …");
+  console.log("1/6 Season calendar …");
   await seedSeasonCalendar(targetYear);
 
-  console.log("2/5 Race results …");
+  console.log("2/6 Race results …");
   await seedRacesAndResults(targetYear);
 
-  console.log("3/5 Qualifying results …");
+  console.log("3/6 Qualifying results …");
   await seedQualifyingResults(targetYear);
 
-  console.log("4/5 Session details (laps, pits, stints) …");
+  console.log("4/6 Session details (laps, pits, stints) …");
   await seedSessionDetailsForYear(targetYear);
 
-  console.log("5/5 Standings …");
+  console.log("5/6 Standings …");
   await seedStandingsForYear(targetYear);
+
+  console.log("6/6 Refreshing active driver & team flags …");
+  await seedConstructorLogos();
+  await syncDriverActiveFlags();
 
   const completed = await prisma.f1_races.count({
     where: {
