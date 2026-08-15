@@ -8,7 +8,6 @@ import { getLiveWeather } from "@/lib/data/live/weather";
 import { CURRENT_SEASON } from "@/lib/config";
 import { resolveLiveSessionStatus } from "@/lib/live-status-server";
 import { setLocaleFromParams } from "@/i18n/set-request-locale";
-import { AppShell } from "@/components/layout/app-shell";
 import { redirect } from "@/i18n/navigation";
 import { buildPageMetadata } from "@/lib/seo";
 import type { Locale } from "@/i18n/config";
@@ -52,6 +51,15 @@ export default async function WeekendPage({
     return null;
   }
 
+  // Find next upcoming session in the weekend timetable
+  const upcomingSession = displayRace.sessions?.find(
+    (s) => new Date(s.date_start).getTime() > Date.now()
+  );
+
+  const countdownSeconds = upcomingSession
+    ? Math.max(0, Math.floor((new Date(upcomingSession.date_start).getTime() - Date.now()) / 1000))
+    : null;
+
   // Construct status context if we are viewing the upcoming/next race
   const activeStatus = weekendRace
     ? status
@@ -61,25 +69,21 @@ export default async function WeekendPage({
         circuitName: displayRace.circuit.circuit_ref,
         circuitRef: displayRace.circuit.circuit_ref,
         meetingName: displayRace.race_name,
-        sessionName: displayRace.sessions.find(s => new Date(s.date_start) > new Date())?.session_name ?? null,
-        countdownSeconds: displayRace.sessions.find(s => new Date(s.date_start) > new Date())
-          ? Math.max(0, Math.floor((new Date(displayRace.sessions.find(s => new Date(s.date_start) > new Date())!.date_start).getTime() - Date.now()) / 1000))
-          : null,
+        sessionName: upcomingSession?.session_name ?? null,
+        countdownSeconds,
         weekendActive: false,
         mode: "off-week" as const,
       };
 
   return (
-    <AppShell>
-      <div className="p-4 sm:p-6 md:p-8 max-w-7xl mx-auto">
-        <WeekendPreview
-          status={activeStatus}
-          race={displayRace as any}
-          liveStandings={liveStandings}
-          liveLap={liveLap}
-          weather={weather}
-        />
-      </div>
-    </AppShell>
+    <div className="p-4 sm:p-6 md:p-8 max-w-7xl mx-auto">
+      <WeekendPreview
+        status={activeStatus}
+        race={displayRace as any}
+        liveStandings={liveStandings}
+        liveLap={liveLap}
+        weather={weather}
+      />
+    </div>
   );
 }

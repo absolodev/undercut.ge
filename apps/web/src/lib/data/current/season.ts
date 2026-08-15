@@ -2,9 +2,94 @@ import { prisma } from "@pitwall/db";
 import { CURRENT_SEASON } from "@/lib/config";
 import newsItems from "@pitwall/data/current/news.json";
 
+function ensureRaceSessions<
+  T extends {
+    id: number;
+    race_date: Date;
+    sessions: Array<{
+      id?: number;
+      race_id?: number;
+      session_type: string;
+      session_name: string | null;
+      date_start: Date;
+      date_end?: Date | null;
+    }>;
+  },
+>(race: T | null): T | null {
+  if (!race) return null;
+  if (race.sessions && race.sessions.length >= 3) {
+    return race;
+  }
+
+  const raceSunday = new Date(race.race_date);
+  const fri = new Date(raceSunday);
+  fri.setUTCDate(fri.getUTCDate() - 2);
+  const sat = new Date(raceSunday);
+  sat.setUTCDate(sat.getUTCDate() - 1);
+
+  const fp1Date = new Date(fri);
+  fp1Date.setUTCHours(11, 30, 0, 0);
+  const fp2Date = new Date(fri);
+  fp2Date.setUTCHours(15, 0, 0, 0);
+  const fp3Date = new Date(sat);
+  fp3Date.setUTCHours(10, 30, 0, 0);
+  const qualiDate = new Date(sat);
+  qualiDate.setUTCHours(14, 0, 0, 0);
+  const raceDate = new Date(raceSunday);
+  raceDate.setUTCHours(13, 0, 0, 0);
+
+  const generatedSessions = [
+    {
+      id: 1000 + race.id * 10 + 1,
+      race_id: race.id,
+      session_type: "FP1",
+      session_name: "Practice 1",
+      date_start: fp1Date,
+      date_end: new Date(fp1Date.getTime() + 3600000),
+    },
+    {
+      id: 1000 + race.id * 10 + 2,
+      race_id: race.id,
+      session_type: "FP2",
+      session_name: "Practice 2",
+      date_start: fp2Date,
+      date_end: new Date(fp2Date.getTime() + 3600000),
+    },
+    {
+      id: 1000 + race.id * 10 + 3,
+      race_id: race.id,
+      session_type: "FP3",
+      session_name: "Practice 3",
+      date_start: fp3Date,
+      date_end: new Date(fp3Date.getTime() + 3600000),
+    },
+    {
+      id: 1000 + race.id * 10 + 4,
+      race_id: race.id,
+      session_type: "Q",
+      session_name: "Qualifying",
+      date_start: qualiDate,
+      date_end: new Date(qualiDate.getTime() + 3600000),
+    },
+    {
+      id: 1000 + race.id * 10 + 5,
+      race_id: race.id,
+      session_type: "R",
+      session_name: "Grand Prix",
+      date_start: raceDate,
+      date_end: new Date(raceDate.getTime() + 7200000),
+    },
+  ];
+
+  return {
+    ...race,
+    sessions: generatedSessions,
+  };
+}
+
 export async function getNextRace(seasonYear: number = CURRENT_SEASON) {
   const now = new Date();
-  return prisma.f1_races.findFirst({
+  const race = await prisma.f1_races.findFirst({
     where: { season_year: seasonYear, race_date: { gte: now } },
     orderBy: { race_date: "asc" },
     include: {
@@ -12,6 +97,8 @@ export async function getNextRace(seasonYear: number = CURRENT_SEASON) {
       sessions: { orderBy: { date_start: "asc" } },
     },
   });
+
+  return ensureRaceSessions(race);
 }
 
 export async function getActiveWeekendRace(seasonYear: number = CURRENT_SEASON) {
@@ -23,7 +110,7 @@ export async function getActiveWeekendRace(seasonYear: number = CURRENT_SEASON) 
   windowEnd.setUTCDate(windowEnd.getUTCDate() + 1);
   windowEnd.setUTCHours(23, 59, 59, 999);
 
-  return prisma.f1_races.findFirst({
+  const race = await prisma.f1_races.findFirst({
     where: {
       season_year: seasonYear,
       race_date: { gte: windowStart, lte: windowEnd },
@@ -34,6 +121,8 @@ export async function getActiveWeekendRace(seasonYear: number = CURRENT_SEASON) 
       sessions: { orderBy: { date_start: "asc" } },
     },
   });
+
+  return ensureRaceSessions(race);
 }
 
 async function getComputedStandings(seasonYear: number) {
