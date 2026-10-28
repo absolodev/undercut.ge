@@ -13,6 +13,7 @@
     "db:seed-continue": "tsx prisma/seed-continue.ts",
     "db:backup": "bash scripts/backup-db.sh",
     "db:sync-latest": "tsx prisma/sync-latest.ts",
+    "db:sync-news": "tsx prisma/sync-news.ts",
     "db:sync-season": "tsx prisma/sync-latest.ts",
     "db:sync-archive": "tsx prisma/sync-historical-archive.ts"
   },

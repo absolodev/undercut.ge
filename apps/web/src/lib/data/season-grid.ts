@@ -200,12 +200,14 @@ export async function getSeasonStats(seasonYear: number) {
     Promise.resolve(getPublishedSeasonRoundCount(seasonYear)),
   ]);
 
-  const raceCount = publishedRounds ?? dbRaceCount;
+  // f1_races is the calendar. season.json round numbers drift when Jolpica
+  // drops or inserts a grand prix, so it must not override a fuller database.
+  const raceCount = dbRaceCount > 0 ? dbRaceCount : (publishedRounds ?? 0);
 
   return {
     raceCount,
     completedRaces,
     pointsAwarded: Number(totalPoints[0]?.total ?? 0),
-    calendarPartial: publishedRounds != null && dbRaceCount < publishedRounds,
+    calendarPartial: publishedRounds != null && dbRaceCount > 0 && dbRaceCount < publishedRounds,
   };
 }

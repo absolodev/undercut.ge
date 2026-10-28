@@ -15,6 +15,7 @@
     "db:studio": "pnpm --filter @pitwall/db db:studio",
     "db:seed": "pnpm --filter @pitwall/db db:seed",
     "sync:latest": "pnpm --filter @pitwall/db db:sync-latest",
+    "sync:news": "pnpm --filter @pitwall/db db:sync-news",
     "sync:season": "pnpm --filter @pitwall/db db:sync-season",
     "sync:archive": "pnpm --filter @pitwall/db db:sync-archive"
   },

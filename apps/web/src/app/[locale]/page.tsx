@@ -16,6 +16,7 @@ import { getSeasonStats } from "@/lib/data/season-grid";
 import { getMostWins, getMostPoles, getRecordsDataCoverage } from "@/lib/data/records";
 import { getLiveLapCount, getLiveRaceStandings } from "@/lib/data/live/standings";
 import { getLiveWeather } from "@/lib/data/live/weather";
+import { raceStartInstant } from "@pitwall/utils";
 import { CURRENT_SEASON } from "@/lib/config";
 import { resolveLiveSessionStatus } from "@/lib/live-status-server";
 import { buildPageMetadata, getSiteUrl } from "@/lib/seo";
@@ -113,10 +114,12 @@ export default async function HomePage({
   }));
 
   const countdownSeconds =
-    status.countdownSeconds ??
-    (nextRace
-      ? Math.max(0, Math.floor((new Date(nextRace.race_date).getTime() - Date.now()) / 1000))
-      : null);
+    status.mode === "off-week" && nextRace
+      ? Math.max(0, Math.floor((raceStartInstant(nextRace).getTime() - Date.now()) / 1000))
+      : (status.countdownSeconds ??
+        (nextRace
+          ? Math.max(0, Math.floor((raceStartInstant(nextRace).getTime() - Date.now()) / 1000))
+          : null));
 
   const sportsEventJsonLd =
     nextRace && countdownSeconds !== null
@@ -144,7 +147,7 @@ export default async function HomePage({
   return (
     <HomeShell>
       {sportsEventJsonLd && <JsonLd data={sportsEventJsonLd} />}
-      {status.mode === "weekend" && weekendRace ? (
+      {status.mode === "weekend" && status.weekendActive && weekendRace ? (
         <WeekendPreview
           status={status}
           race={weekendRace}

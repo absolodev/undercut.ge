@@ -26,4 +26,8 @@ export const redisKvWriter = {
   async setSessionInfo(info: any): Promise<void> {
     await redis.set("live:session:info", JSON.stringify(info), "EX", TTL);
   },
+
+  async clearSessionInfo(): Promise<void> {
+    await redis.del("live:session:info");
+  },
 };

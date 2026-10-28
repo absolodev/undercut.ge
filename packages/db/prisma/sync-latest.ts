@@ -12,28 +12,37 @@ import { seedRacesAndResults, seedQualifyingResults, seedSeasonCalendar } from "
 import { seedSessionDetailsForYear } from "./seed-session-details";
 import { seedStandingsForYear } from "./seed-standings";
 import { seedConstructorLogos, syncDriverActiveFlags } from "./seed-enrichment";
+import { refreshSeasonNews } from "../src/news-cache";
 
 const year = parseInt(process.argv[2] ?? process.env.CURRENT_SEASON ?? String(new Date().getFullYear()), 10);
 
 async function syncSeason(targetYear: number): Promise<void> {
   console.log(`\n=== UnderCut sync: ${targetYear} ===\n`);
 
-  console.log("1/6 Season calendar …");
+  console.log("0/7 F1 news …");
+  try {
+    const news = await refreshSeasonNews();
+    console.log(`News cache updated (${news.length} item(s)).`);
+  } catch (error) {
+    console.error("News refresh failed:", error);
+  }
+
+  console.log("1/7 Season calendar …");
   await seedSeasonCalendar(targetYear);
 
-  console.log("2/6 Race results …");
+  console.log("2/7 Race results …");
   await seedRacesAndResults(targetYear);
 
-  console.log("3/6 Qualifying results …");
+  console.log("3/7 Qualifying results …");
   await seedQualifyingResults(targetYear);
 
-  console.log("4/6 Session details (laps, pits, stints) …");
+  console.log("4/7 Session details (laps, pits, stints) …");
   await seedSessionDetailsForYear(targetYear);
 
-  console.log("5/6 Standings …");
+  console.log("5/7 Standings …");
   await seedStandingsForYear(targetYear);
 
-  console.log("6/6 Refreshing active driver & team flags …");
+  console.log("6/7 Refreshing active driver & team flags …");
   await seedConstructorLogos();
   await syncDriverActiveFlags();
 

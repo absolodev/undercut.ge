@@ -1,6 +1,6 @@
-import { prisma } from "@pitwall/db";
+import { prisma, readSeasonNews, type SeasonNewsItem as CachedNewsItem } from "@pitwall/db";
+import { pickActiveWeekendRace, pickNextRace } from "@pitwall/utils";
 import { CURRENT_SEASON } from "@/lib/config";
-import newsItems from "@pitwall/data/current/news.json";
 
 function ensureRaceSessions<
   T extends {
@@ -87,42 +87,42 @@ function ensureRaceSessions<
   };
 }
 
+const raceInclude = {
+  circuit: true,
+  sessions: { orderBy: { date_start: "asc" as const } },
+};
+
+function utcDay(now: Date, dayOffset: number): Date {
+  const day = new Date(now);
+  day.setUTCHours(0, 0, 0, 0);
+  day.setUTCDate(day.getUTCDate() + dayOffset);
+  return day;
+}
+
 export async function getNextRace(seasonYear: number = CURRENT_SEASON) {
   const now = new Date();
-  const race = await prisma.f1_races.findFirst({
-    where: { season_year: seasonYear, race_date: { gte: now } },
+  const races = await prisma.f1_races.findMany({
+    where: { season_year: seasonYear, race_date: { gte: utcDay(now, -3) } },
     orderBy: { race_date: "asc" },
-    include: {
-      circuit: true,
-      sessions: { orderBy: { date_start: "asc" } },
-    },
+    take: 6,
+    include: raceInclude,
   });
 
-  return ensureRaceSessions(race);
+  return ensureRaceSessions(pickNextRace(races, now));
 }
 
 export async function getActiveWeekendRace(seasonYear: number = CURRENT_SEASON) {
   const now = new Date();
-  const windowStart = new Date(now);
-  windowStart.setUTCDate(windowStart.getUTCDate() - 3);
-  windowStart.setUTCHours(0, 0, 0, 0);
-  const windowEnd = new Date(now);
-  windowEnd.setUTCDate(windowEnd.getUTCDate() + 1);
-  windowEnd.setUTCHours(23, 59, 59, 999);
-
-  const race = await prisma.f1_races.findFirst({
+  const races = await prisma.f1_races.findMany({
     where: {
       season_year: seasonYear,
-      race_date: { gte: windowStart, lte: windowEnd },
+      race_date: { gte: utcDay(now, -3), lte: utcDay(now, 4) },
     },
     orderBy: { race_date: "asc" },
-    include: {
-      circuit: true,
-      sessions: { orderBy: { date_start: "asc" } },
-    },
+    include: raceInclude,
   });
 
-  return ensureRaceSessions(race);
+  return ensureRaceSessions(pickActiveWeekendRace(races, now));
 }
 
 async function getComputedStandings(seasonYear: number) {
@@ -285,98 +285,12 @@ export async function getRecentRaceResults(seasonYear: number = CURRENT_SEASON, 
   });
 }
 
-export interface SeasonNewsItem {
-  date: string;
-  category: string;
-  title: string;
-  summary: string;
-  url?: string;
-  source?: string;
+export interface SeasonNewsItem extends CachedNewsItem {
   imageUrl?: string;
 }
 
 export async function getSeasonNews(): Promise<SeasonNewsItem[]> {
-  try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 2500);
-
-    const res = await fetch("https://www.autosport.com/rss/f1/news/", {
-      signal: controller.signal,
-      next: { revalidate: 1800 },
-    });
-    clearTimeout(timeout);
-
-    if (res.ok) {
-      const text = await res.text();
-      const items: SeasonNewsItem[] = [];
-      const itemRegex = /<item>([\s\S]*?)<\/item>/g;
-      let match: RegExpExecArray | null;
-
-      while ((match = itemRegex.exec(text)) !== null && items.length < 5) {
-        const itemXml = match[1];
-        const titleMatch =
-          itemXml.match(/<title><!\[CDATA\[([\s\S]*?)\]\]><\/title>/) ||
-          itemXml.match(/<title>([\s\S]*?)<\/title>/);
-        const linkMatch =
-          itemXml.match(/<link><!\[CDATA\[([\s\S]*?)\]\]><\/link>/) ||
-          itemXml.match(/<link>([\s\S]*?)<\/link>/);
-        const descMatch =
-          itemXml.match(/<description><!\[CDATA\[([\s\S]*?)\]\]><\/description>/) ||
-          itemXml.match(/<description>([\s\S]*?)<\/description>/);
-        const dateMatch = itemXml.match(/<pubDate>(.*?)<\/pubDate>/);
-        const categoryMatch =
-          itemXml.match(/<category><!\[CDATA\[([\s\S]*?)\]\]><\/category>/) ||
-          itemXml.match(/<category>([\s\S]*?)<\/category>/);
-        const imgMatch =
-          itemXml.match(/<enclosure[^>]+url="([^"]+)"/) ||
-          itemXml.match(/<media:thumbnail[^>]+url="([^"]+)"/);
-
-        let cleanDesc = (descMatch ? descMatch[1] : "")
-          .replace(/<[^>]*>/g, "")
-          .replace(/&amp;/g, "&")
-          .replace(/&quot;/g, '"')
-          .replace(/&#39;/g, "'")
-          .replace(/&lt;/g, "<")
-          .replace(/&gt;/g, ">")
-          .replace(/Keep reading/g, "")
-          .trim();
-
-        if (cleanDesc.length > 170) {
-          cleanDesc = `${cleanDesc.substring(0, 170)}...`;
-        }
-
-        const title = (titleMatch ? titleMatch[1] : "")
-          .replace(/<!\[CDATA\[/g, "")
-          .replace(/\]\]>/g, "")
-          .replace(/&amp;/g, "&")
-          .replace(/&quot;/g, '"')
-          .replace(/&#39;/g, "'")
-          .trim();
-
-        if (title) {
-          items.push({
-            title,
-            category: categoryMatch ? categoryMatch[1].trim() : "Formula 1",
-            url: linkMatch ? linkMatch[1].trim() : undefined,
-            summary: cleanDesc,
-            date: dateMatch
-              ? new Date(dateMatch[1]).toISOString().split("T")[0]
-              : new Date().toISOString().split("T")[0],
-            source: "Autosport",
-            imageUrl: imgMatch ? imgMatch[1] : undefined,
-          });
-        }
-      }
-
-      if (items.length > 0) {
-        return items;
-      }
-    }
-  } catch {
-    // Fallback to static bundled news
-  }
-
-  return newsItems as SeasonNewsItem[];
+  return readSeasonNews();
 }
 
 export async function getCurrentSeasonRecord() {

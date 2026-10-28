@@ -35,3 +35,6 @@ apps/mobile/dist/
 
 # Test / coverage
 coverage/
+
+# Runtime news cache (written by sync, not part of the Next build)
+packages/data/current/news.cache.json

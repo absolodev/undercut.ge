@@ -108,6 +108,58 @@ export function isWeekendComplete(sessions: ScheduledSession[]): boolean {
   return isSessionEnded(race);
 }
 
+function weekendBounds(sessions: ScheduledSession[]): { start: number; end: number } | null {
+  if (sessions.length === 0) return null;
+  const ordered = [...sessions].sort(
+    (left, right) => new Date(left.dateStart).getTime() - new Date(right.dateStart).getTime()
+  );
+  const first = new Date(ordered[0].dateStart);
+  first.setUTCHours(0, 0, 0, 0);
+  const race = ordered.find((session) => session.sessionType === "R") ?? ordered[ordered.length - 1];
+  const end = new Date(race.dateEnd).getTime() + SESSION_END_BUFFER_MS;
+  return { start: first.getTime(), end };
+}
+
+export async function fetchJolpicaSeasonRaces(seasonYear: number): Promise<JolpicaRace[] | null> {
+  try {
+    const res = await fetch(`${JOLPICA_BASE}/${seasonYear}.json`, { cache: "no-store" });
+    if (!res.ok) return null;
+    const data = (await res.json()) as { MRData?: { RaceTable?: { Races?: JolpicaRace[] } } };
+    return data.MRData?.RaceTable?.Races ?? [];
+  } catch {
+    return null;
+  }
+}
+
+export function findLiveSessionInRaces(
+  races: JolpicaRace[]
+): { race: JolpicaRace; session: ScheduledSession } | null {
+  for (const race of races) {
+    const live = findLiveScheduledSession(parseJolpicaRaceSessions(race));
+    if (live) return { race, session: live };
+  }
+  return null;
+}
+
+/**
+ * Active only from the first session's calendar day through the race end.
+ * A finished grand prix is never returned, even inside a multi-day lookback.
+ */
+export function findActiveJolpicaWeekend(
+  races: JolpicaRace[],
+  now: Date = new Date()
+): { race: JolpicaRace; nextSession: ScheduledSession | null } | null {
+  const instant = now.getTime();
+  for (const race of races) {
+    const sessions = parseJolpicaRaceSessions(race);
+    if (isWeekendComplete(sessions)) continue;
+    const bounds = weekendBounds(sessions);
+    if (!bounds || instant < bounds.start || instant > bounds.end) continue;
+    return { race, nextSession: findNextScheduledSession(sessions) };
+  }
+  return null;
+}
+
 async function fetchJolpicaRaceTable(seasonYear: number, round?: number): Promise<JolpicaRace | null> {
   try {
     const path = round != null ? `${seasonYear}/${round}.json` : `${seasonYear}.json`;
@@ -134,18 +186,19 @@ export async function fetchJolpicaRaceByRound(
 export async function fetchJolpicaRaceForWeekend(
   seasonYear: number,
   circuitRef: string,
-  raceDate: Date
+  raceDate: Date,
+  round?: number
 ): Promise<{ race: JolpicaRace; sessions: ScheduledSession[] } | null> {
   try {
-    const res = await fetch(`${JOLPICA_BASE}/${seasonYear}.json`, { cache: "no-store" });
-    if (!res.ok) return null;
-    const data = (await res.json()) as { MRData?: { RaceTable?: { Races?: JolpicaRace[] } } };
-    const races = data.MRData?.RaceTable?.Races ?? [];
+    const races = await fetchJolpicaSeasonRaces(seasonYear);
+    if (!races) return null;
     const targetDate = raceDate.toISOString().slice(0, 10);
 
+    // Match the round first. A circuit-only fallback attached Mexico's future
+    // timetable to the United States row after circuit ids drifted by one round.
     const race =
+      (round != null ? races.find((r) => Number(r.round) === round) : undefined) ??
       races.find((r) => r.Circuit.circuitId === circuitRef && r.date === targetDate) ??
-      races.find((r) => r.Circuit.circuitId === circuitRef) ??
       races.find((r) => r.date === targetDate);
 
     if (!race) return null;
@@ -159,46 +212,18 @@ export async function fetchJolpicaRaceForWeekend(
 export async function findLiveSessionFromJolpicaCalendar(
   seasonYear: number
 ): Promise<{ race: JolpicaRace; session: ScheduledSession } | null> {
-  try {
-    const res = await fetch(`${JOLPICA_BASE}/${seasonYear}.json`, { cache: "no-store" });
-    if (!res.ok) return null;
-    const data = (await res.json()) as { MRData?: { RaceTable?: { Races?: JolpicaRace[] } } };
-    const races = data.MRData?.RaceTable?.Races ?? [];
-
-    for (const race of races) {
-      const sessions = parseJolpicaRaceSessions(race);
-      const live = findLiveScheduledSession(sessions);
-      if (live) return { race, session: live };
-    }
-    return null;
-  } catch {
-    return null;
-  }
+  const races = await fetchJolpicaSeasonRaces(seasonYear);
+  if (!races) return null;
+  return findLiveSessionInRaces(races);
 }
 
-/** Nearest race weekend for preview/countdown when DB calendar is incomplete. */
+/** Nearest race weekend for preview when the DB calendar has no matching round. */
 export async function findUpcomingJolpicaWeekend(
   seasonYear: number
 ): Promise<{ race: JolpicaRace; nextSession: ScheduledSession } | null> {
-  try {
-    const res = await fetch(`${JOLPICA_BASE}/${seasonYear}.json`, { cache: "no-store" });
-    if (!res.ok) return null;
-    const data = (await res.json()) as { MRData?: { RaceTable?: { Races?: JolpicaRace[] } } };
-    const races = data.MRData?.RaceTable?.Races ?? [];
-    const now = Date.now();
-
-    for (const race of races) {
-      const raceStart = new Date(race.time ? `${race.date}T${race.time}` : race.date).getTime();
-      const windowStart = raceStart - 3 * 24 * 60 * 60 * 1000;
-      const windowEnd = raceStart + 24 * 60 * 60 * 1000;
-      if (now < windowStart || now > windowEnd) continue;
-
-      const sessions = parseJolpicaRaceSessions(race);
-      const next = findNextScheduledSession(sessions);
-      if (next) return { race, nextSession: next };
-    }
-    return null;
-  } catch {
-    return null;
-  }
+  const races = await fetchJolpicaSeasonRaces(seasonYear);
+  if (!races) return null;
+  const active = findActiveJolpicaWeekend(races);
+  if (!active?.nextSession) return null;
+  return { race: active.race, nextSession: active.nextSession };
 }

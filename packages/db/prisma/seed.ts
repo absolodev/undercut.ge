@@ -176,21 +176,38 @@ async function seedCircuits(): Promise<void> {
   }
 }
 
-async function upsertRaceFromJolpica(
-  year: number,
-  r: {
-    round: string;
-    raceName: string;
-    date: string;
-    time?: string;
-    url?: string;
-    Circuit: {
-      circuitId: string;
-      circuitName: string;
-      Location: { locality: string; country: string; lat: string; long: string };
-    };
-  },
-) {
+type JolpicaSlot = { date: string; time?: string };
+
+type JolpicaRacePayload = {
+  round: string;
+  raceName: string;
+  date: string;
+  time?: string;
+  url?: string;
+  Circuit: {
+    circuitId: string;
+    circuitName: string;
+    Location: { locality: string; country: string; lat: string; long: string };
+  };
+  FirstPractice?: JolpicaSlot;
+  SecondPractice?: JolpicaSlot;
+  ThirdPractice?: JolpicaSlot;
+  Qualifying?: JolpicaSlot;
+  Sprint?: JolpicaSlot;
+  SprintQualifying?: JolpicaSlot;
+};
+
+const SESSION_DURATION_MS: Record<string, number> = {
+  FP1: 60 * 60 * 1000,
+  FP2: 60 * 60 * 1000,
+  FP3: 60 * 60 * 1000,
+  Q: 60 * 60 * 1000,
+  SQ: 45 * 60 * 1000,
+  S: 60 * 60 * 1000,
+  R: 2 * 60 * 60 * 1000,
+};
+
+async function upsertRaceFromJolpica(year: number, r: JolpicaRacePayload) {
   let circuit = await prisma.f1_circuits.findUnique({
     where: { circuit_ref: r.Circuit.circuitId },
   });
@@ -221,6 +238,11 @@ async function upsertRaceFromJolpica(
       race_name: r.raceName,
       race_date: raceDate,
       race_time: raceTime,
+      // Round numbers move when a race is added or cancelled. The previous
+      // circuit_id must move with the Jolpica identity or later rounds keep
+      // the next circuit (US GP was stored on rodriguez).
+      circuit_id: circuit.id,
+      url: r.url || null,
     },
     create: {
       season_year: year,
@@ -234,16 +256,85 @@ async function upsertRaceFromJolpica(
   });
 }
 
+function slotRange(type: string, slot?: JolpicaSlot): { start: Date; end: Date } | null {
+  if (!slot?.date) return null;
+  const start = new Date(slot.time ? `${slot.date}T${slot.time}` : `${slot.date}T00:00:00Z`);
+  if (Number.isNaN(start.getTime())) return null;
+  const duration = SESSION_DURATION_MS[type] ?? SESSION_DURATION_MS.R;
+  return { start, end: new Date(start.getTime() + duration) };
+}
+
+async function sessionHasRows(sessionId: number): Promise<boolean> {
+  const checks = await Promise.all([
+    prisma.f1_results.findFirst({ where: { session_id: sessionId }, select: { id: true } }),
+    prisma.f1_qualifying_results.findFirst({ where: { session_id: sessionId }, select: { id: true } }),
+    prisma.f1_laps.findFirst({ where: { session_id: sessionId }, select: { id: true } }),
+    prisma.f1_pit_stops.findFirst({ where: { session_id: sessionId }, select: { id: true } }),
+    prisma.f1_stints.findFirst({ where: { session_id: sessionId }, select: { id: true } }),
+    prisma.f1_penalties.findFirst({ where: { session_id: sessionId }, select: { id: true } }),
+    prisma.f1_race_incidents.findFirst({ where: { session_id: sessionId }, select: { id: true } }),
+    prisma.f1_race_control_messages.findFirst({ where: { session_id: sessionId }, select: { id: true } }),
+    prisma.f1_weather_snapshots.findFirst({ where: { session_id: sessionId }, select: { id: true } }),
+    prisma.f1_telemetry.findFirst({ where: { session_id: sessionId }, select: { id: true } }),
+  ]);
+  return checks.some((row) => row !== null);
+}
+
+/** Write Jolpica practice/qualifying/race instants. Ends are start + duration, never a copy of the start. */
+async function syncRaceSessions(raceId: number, race: JolpicaRacePayload): Promise<void> {
+  const planned: Array<[string, string, JolpicaSlot | undefined]> = [
+    ["FP1", "Practice 1", race.FirstPractice],
+    ["FP2", "Practice 2", race.SecondPractice],
+    ["FP3", "Practice 3", race.ThirdPractice],
+    ["SQ", "Sprint Qualifying", race.SprintQualifying],
+    ["S", "Sprint", race.Sprint],
+    ["Q", "Qualifying", race.Qualifying],
+    ["R", "Race", { date: race.date, time: race.time }],
+  ];
+
+  const keep = new Set<string>();
+  for (const [type, name, slot] of planned) {
+    const range = slotRange(type, slot);
+    if (!range) continue;
+    keep.add(type);
+    await prisma.f1_sessions.upsert({
+      where: { race_id_session_type: { race_id: raceId, session_type: type } },
+      update: {
+        session_name: name,
+        date_start: range.start,
+        date_end: range.end,
+      },
+      create: {
+        race_id: raceId,
+        session_type: type,
+        session_name: name,
+        date_start: range.start,
+        date_end: range.end,
+      },
+    });
+  }
+
+  const extras = await prisma.f1_sessions.findMany({
+    where: { race_id: raceId, session_type: { notIn: [...keep] } },
+    select: { id: true, session_type: true },
+  });
+  for (const extra of extras) {
+    if (await sessionHasRows(extra.id)) continue;
+    await prisma.f1_sessions.delete({ where: { id: extra.id } });
+  }
+}
+
 /** Upsert full season calendar (scheduled + completed rounds) from Jolpica. */
 async function seedSeasonCalendar(year: number): Promise<void> {
   console.log(`Seeding season calendar for ${year}...`);
   const res = await fetch(`${JOLPICA_BASE}/${year}.json`);
   const data = (await res.json()) as {
-    MRData: { RaceTable: { Races: Parameters<typeof upsertRaceFromJolpica>[1][] } };
+    MRData: { RaceTable: { Races: JolpicaRacePayload[] } };
   };
   const races = data.MRData.RaceTable.Races ?? [];
   for (const r of races) {
-    await upsertRaceFromJolpica(year, r);
+    const race = await upsertRaceFromJolpica(year, r);
+    await syncRaceSessions(race.id, r);
   }
   console.log(`Calendar synced: ${races.length} race(s) for ${year}.`);
 }

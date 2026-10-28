@@ -4,7 +4,7 @@ import { WeatherPoller } from "./pollers/weather-poller";
 import { StandingsPoller } from "./pollers/standings-poller";
 import { LapsPoller } from "./pollers/laps-poller";
 import { redisKvWriter } from "./writers/redis-kv-writer";
-import { mapOpenF1Session } from "./lib/session-utils";
+import { isSessionLive, mapOpenF1Session } from "./lib/session-utils";
 import { openF1Fetch, getOpenF1AccessToken } from "./lib/openf1-client";
 import { findLiveSessionFromJolpica, scheduledSessionToSessionInfo } from "./lib/jolpica";
 import { logger } from "./lib/logger";
@@ -47,7 +47,11 @@ export class SessionManager {
                 "Published Jolpica session info (no OpenF1 auth — pollers idle)"
               );
             }
+            return;
           }
+          // The restriction message alone does not mean a session is still running.
+          this.stopPollers();
+          await redisKvWriter.clearSessionInfo();
         }
         return;
       }
@@ -56,6 +60,22 @@ export class SessionManager {
 
       const session = result.data[0] as Record<string, unknown>;
       const sessionKey = Number(session.session_key);
+      const info = mapOpenF1Session(session);
+      const live = isSessionLive({
+        date_start: String(session.date_start ?? ""),
+        date_end: session.date_end ? String(session.date_end) : null,
+        session_type: info.sessionType,
+      });
+
+      if (!live) {
+        if (this.pollersActive || this.currentSessionKey !== sessionKey) {
+          logger.info({ sessionKey, name: session.session_name }, "Latest session is not live");
+        }
+        this.stopPollers();
+        this.currentSessionKey = sessionKey;
+        await redisKvWriter.clearSessionInfo();
+        return;
+      }
 
       if (sessionKey !== this.currentSessionKey) {
         logger.info(
@@ -64,10 +84,10 @@ export class SessionManager {
         );
         this.stopPollers();
         this.currentSessionKey = sessionKey;
-        const info = mapOpenF1Session(session);
         await this.publishSessionInfo(info, sessionKey);
         this.startPollers(sessionKey);
       } else if (!this.pollersActive) {
+        await this.publishSessionInfo(info, sessionKey);
         this.startPollers(sessionKey);
       }
     } catch (err) {

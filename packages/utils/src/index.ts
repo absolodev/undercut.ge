@@ -49,3 +49,17 @@ export function getSectorColor(isOverallBest: boolean, isPersonalBest: boolean):
   if (isPersonalBest) return "green";
   return "yellow";
 }
+
+export {
+  SESSION_END_BUFFER_MS,
+  combineRaceDateAndTime,
+  isActiveRaceWeekend,
+  isRaceComplete,
+  pickActiveWeekendRace,
+  pickNextRace,
+  raceEndInstant,
+  raceStartInstant,
+  resolveTimedSessionEnd,
+  weekendStartInstant,
+} from "./race-window";
+export type { RaceSessionTiming, RaceTiming } from "./race-window";
