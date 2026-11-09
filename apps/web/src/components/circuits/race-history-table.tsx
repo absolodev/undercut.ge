@@ -16,13 +16,16 @@ export function RaceHistoryTable({ races }: { races: any[] }) {
               <th className="p-3">RACE</th>
               <th className="p-3">WINNER</th>
               <th className="p-3">CONSTRUCTOR</th>
+              <th className="p-3">POLE</th>
               <th className="p-3 text-right">ARCHIVE</th>
             </tr>
           </thead>
           <tbody>
             {races.map((r) => {
               const raceSession = r.sessions?.find((s: any) => s.session_type === "R");
+              const quali = r.sessions?.find((s: any) => s.session_type === "Q");
               const winner = raceSession?.results?.[0];
+              const pole = quali?.qualifying_results?.[0];
 
               return (
                 <tr key={r.id} className="border-b border-white/5 hover:bg-white/5">
@@ -39,6 +42,7 @@ export function RaceHistoryTable({ races }: { races: any[] }) {
                       </div>
                     ) : <span className="italic text-white/30">N/A</span>}
                   </td>
+                  <td className="p-3 text-white/70">{pole?.driver?.full_name ?? "—"}</td>
                   <td className="p-3 text-right">
                     <Link href={`/f1/seasons/${r.season_year}/${r.round}`} className="text-[#E10600] hover:underline font-mono text-xs">
                       VIEW →

@@ -8,14 +8,21 @@ export async function getDriverProfile(driverRef: string) {
 
   const stats = await prisma.$queryRaw`
     SELECT
-      COUNT(*) FILTER (WHERE finish_position = 1) as wins,
-      COUNT(*) FILTER (WHERE finish_position <= 3) as podiums,
-      COUNT(*) as races,
-      SUM(points) as total_points,
-      COUNT(*) FILTER (WHERE classification = 'DNF') as dnfs,
-      AVG(NULLIF(finish_position, 0)) as avg_finish,
-      AVG(NULLIF(grid_position, 0)) as avg_grid
-    FROM f1_results WHERE driver_id = ${driver.id}
+      COUNT(*) FILTER (WHERE s.session_type = 'R' AND res.finish_position = 1) as wins,
+      COUNT(*) FILTER (WHERE s.session_type = 'R' AND res.finish_position <= 3) as podiums,
+      COUNT(*) FILTER (WHERE s.session_type = 'R') as races,
+      COALESCE(SUM(res.points) FILTER (WHERE s.session_type IN ('R', 'S')), 0) as total_points,
+      COUNT(*) FILTER (
+        WHERE s.session_type = 'R' AND (
+          res.position_text IN ('R', 'D', 'E', 'F')
+          OR res.classification IN ('DNF', 'DSQ', 'EX', 'DNQ')
+        )
+      ) as dnfs,
+      AVG(NULLIF(res.finish_position, 0)) FILTER (WHERE s.session_type = 'R') as avg_finish,
+      AVG(NULLIF(res.grid_position, 0)) FILTER (WHERE s.session_type = 'R') as avg_grid
+    FROM f1_results res
+    JOIN f1_sessions s ON res.session_id = s.id
+    WHERE res.driver_id = ${driver.id} AND s.session_type IN ('R', 'S')
   `;
 
   const poles = await prisma.$queryRaw`
@@ -24,7 +31,7 @@ export async function getDriverProfile(driverRef: string) {
   `;
 
   const fastestLaps = await prisma.f1_results.count({
-    where: { driver_id: driver.id, fastest_lap: true },
+    where: { driver_id: driver.id, fastest_lap: true, session: { session_type: "R" } },
   });
 
   const seasonBreakdown = await prisma.$queryRaw`
@@ -47,7 +54,7 @@ export async function getDriverProfile(driverRef: string) {
       FROM f1_results res
       JOIN f1_sessions s ON res.session_id = s.id
       JOIN f1_races r ON s.race_id = r.id
-      WHERE s.session_type = 'R'
+      WHERE s.session_type IN ('R', 'S')
       GROUP BY r.season_year, res.driver_id
     ),
     season_team AS (
@@ -69,14 +76,30 @@ export async function getDriverProfile(driverRef: string) {
     season_stats AS (
       SELECT
         r.season_year as year,
-        COUNT(*) as races,
-        COUNT(*) FILTER (WHERE res.finish_position = 1) as wins,
-        COUNT(*) FILTER (WHERE res.finish_position <= 3) as podiums,
-        SUM(res.points) as points
+        COUNT(*) FILTER (WHERE s.session_type = 'R') as races,
+        COUNT(*) FILTER (WHERE s.session_type = 'R' AND res.finish_position = 1) as wins,
+        COUNT(*) FILTER (WHERE s.session_type = 'R' AND res.finish_position <= 3) as podiums,
+        COALESCE(SUM(res.points) FILTER (WHERE s.session_type IN ('R', 'S')), 0) as points
       FROM f1_results res
       JOIN f1_sessions s ON res.session_id = s.id
       JOIN f1_races r ON s.race_id = r.id
-      WHERE res.driver_id = ${driver.id} AND s.session_type = 'R'
+      WHERE res.driver_id = ${driver.id} AND s.session_type IN ('R', 'S')
+      GROUP BY r.season_year
+    ),
+    season_poles AS (
+      SELECT r.season_year as year, COUNT(*) as poles
+      FROM f1_qualifying_results qr
+      JOIN f1_sessions s ON qr.session_id = s.id
+      JOIN f1_races r ON s.race_id = r.id
+      WHERE qr.driver_id = ${driver.id} AND qr.position = 1 AND s.session_type = 'Q'
+      GROUP BY r.season_year
+    ),
+    season_fastest AS (
+      SELECT r.season_year as year, COUNT(*) as fastest_laps
+      FROM f1_results res
+      JOIN f1_sessions s ON res.session_id = s.id
+      JOIN f1_races r ON s.race_id = r.id
+      WHERE res.driver_id = ${driver.id} AND res.fastest_lap = true AND s.session_type = 'R'
       GROUP BY r.season_year
     )
     SELECT
@@ -88,15 +111,47 @@ export async function getDriverProfile(driverRef: string) {
       ss.wins,
       ss.podiums,
       ss.points,
+      COALESCE(sp.poles, 0) as poles,
+      COALESCE(sf.fastest_laps, 0) as fastest_laps,
       COALESCE(ls.position, cp.position) as championship_position
     FROM season_stats ss
     LEFT JOIN season_team st ON st.year = ss.year AND st.rn = 1
     LEFT JOIN latest_standings ls ON ls.season_year = ss.year
     LEFT JOIN computed_positions cp ON cp.season_year = ss.year AND cp.driver_id = ${driver.id}
+    LEFT JOIN season_poles sp ON sp.year = ss.year
+    LEFT JOIN season_fastest sf ON sf.year = ss.year
     ORDER BY ss.year DESC
   `;
 
   return { driver, stats, poles, fastestLaps, seasonBreakdown };
+}
+
+export async function getDriverRecentResults(driverId: number) {
+  const rows = await prisma.f1_results.findMany({
+    where: { driver_id: driverId, session: { session_type: "R" } },
+    orderBy: { session: { race: { race_date: "desc" } } },
+    take: 15,
+    include: {
+      constructor: { select: { name: true } },
+      session: {
+        select: {
+          race: { select: { season_year: true, round: true, race_name: true } },
+        },
+      },
+    },
+  });
+
+  return rows.map((row) => ({
+    year: row.session.race.season_year,
+    round: row.session.race.round,
+    race_name: row.session.race.race_name,
+    constructor_name: row.constructor.name,
+    grid_position: row.grid_position,
+    finish_position: row.finish_position,
+    position_text: row.position_text,
+    points: row.points,
+    fastest_lap: row.fastest_lap,
+  }));
 }
 
 export interface TeammateH2HRow {

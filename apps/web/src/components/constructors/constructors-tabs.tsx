@@ -12,6 +12,9 @@ type Constructor = {
   color_primary: string | null;
   is_active: boolean;
   logo_url?: string | null;
+  season_position?: number | null;
+  season_points?: number | null;
+  season_wins?: number | null;
 };
 
 function ConstructorGrid({
@@ -19,15 +22,18 @@ function ConstructorGrid({
   statsById,
   emptyMessage,
   labels,
+  seasonStats,
 }: {
   constructors: Constructor[];
   statsById: Map<number, ConstructorQuickStat>;
   emptyMessage?: string;
+  seasonStats?: boolean;
   labels: {
     active: string;
     historical: string;
     wins: string;
     bestFinish: string;
+    seasonStanding: string;
   };
 }) {
   if (constructors.length === 0) {
@@ -72,7 +78,14 @@ function ConstructorGrid({
               <span className="text-[10px] font-mono text-white/30 bg-white/5 px-2 py-0.5 rounded uppercase">
                 {c.is_active ? labels.active : labels.historical}
               </span>
-              {quick && (quick.wins > 0 || quick.best_finish != null) && (
+              {seasonStats && c.season_position != null ? (
+                <div className="text-right text-[10px] font-mono text-white/50 leading-tight">
+                  {labels.seasonStanding
+                    .replace("{position}", String(c.season_position))
+                    .replace("{points}", String(c.season_points ?? 0))
+                    .replace("{wins}", String(c.season_wins ?? 0))}
+                </div>
+              ) : quick && (quick.wins > 0 || quick.best_finish != null) ? (
                 <div className="text-right text-[10px] font-mono text-white/40 leading-tight">
                   {quick.wins > 0 && (
                     <div>
@@ -85,7 +98,7 @@ function ConstructorGrid({
                     </div>
                   )}
                 </div>
-              )}
+              ) : null}
             </div>
           </Link>
         );
@@ -110,6 +123,7 @@ export function ConstructorsTabs({
     historical: string;
     wins: string;
     bestFinish: string;
+    seasonStanding: string;
   };
 }) {
   return (
@@ -127,6 +141,7 @@ export function ConstructorsTabs({
           constructors={currentGrid}
           statsById={statsById}
           labels={labels}
+          seasonStats
         />
       </TabsContent>
       <TabsContent value="archive">

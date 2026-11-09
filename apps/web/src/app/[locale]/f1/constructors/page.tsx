@@ -64,6 +64,7 @@ export default async function ConstructorsPage({
           historical: t("historical"),
           wins: t("wins"),
           bestFinish: t("bestFinish"),
+          seasonStanding: t("seasonStanding"),
         }}
       />
     </div>

@@ -14,6 +14,7 @@ export function CareerStatsGrid({ stats, poles, fastestLaps }: { stats: any, pol
         <StatCard label="CAREER POINTS" value={Number(s.total_points) || 0} />
         <StatCard label="AVG FINISH" value={Number(s.avg_finish)?.toFixed(1) || "-"} />
         <StatCard label="AVG GRID" value={Number(s.avg_grid)?.toFixed(1) || "-"} />
+        <StatCard label="DNFs" value={Number(s.dnfs) || 0} />
       </div>
     </div>
   );

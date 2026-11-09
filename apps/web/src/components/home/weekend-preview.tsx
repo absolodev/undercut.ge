@@ -29,6 +29,7 @@ interface WeekendPreviewProps {
       session_type: string;
       session_name: string | null;
       date_start: Date;
+      results?: Array<{ finish_position: number | null; driver: { broadcast_name: string } }>;
     }>;
   };
 }
@@ -44,37 +45,7 @@ function formatCountdown(seconds: number | null): string {
 }
 
 export function WeekendPreview({ status, race, liveStandings, liveLap, weather }: WeekendPreviewProps) {
-  // Ensure we always have the 5 standard F1 weekend sessions if not populated
-  let sessions = race.sessions;
-  if (!sessions || sessions.length === 0) {
-    const raceSunday = new Date(race.race_date);
-    const fri = new Date(raceSunday);
-    fri.setUTCDate(fri.getUTCDate() - 2);
-    const sat = new Date(raceSunday);
-    sat.setUTCDate(sat.getUTCDate() - 1);
-
-    const fp1Date = new Date(fri);
-    fp1Date.setUTCHours(11, 30, 0, 0);
-    const fp2Date = new Date(fri);
-    fp2Date.setUTCHours(15, 0, 0, 0);
-    const fp3Date = new Date(sat);
-    fp3Date.setUTCHours(10, 30, 0, 0);
-    const qualiDate = new Date(sat);
-    qualiDate.setUTCHours(14, 0, 0, 0);
-    const raceDate = new Date(raceSunday);
-    raceDate.setUTCHours(13, 0, 0, 0);
-
-    sessions = [
-      { session_type: "FP1", session_name: "Practice 1", date_start: fp1Date },
-      { session_type: "FP2", session_name: "Practice 2", date_start: fp2Date },
-      { session_type: "FP3", session_name: "Practice 3", date_start: fp3Date },
-      { session_type: "Q", session_name: "Qualifying", date_start: qualiDate },
-      { session_type: "R", session_name: "Grand Prix", date_start: raceDate },
-    ];
-  }
-
-  // Sort sessions chronologically
-  const sortedSessions = [...sessions].sort(
+  const sortedSessions = [...(race.sessions ?? [])].sort(
     (a, b) => new Date(a.date_start).getTime() - new Date(b.date_start).getTime()
   );
 
@@ -121,15 +92,20 @@ export function WeekendPreview({ status, race, liveStandings, liveLap, weather }
             <span className="text-[11px] font-mono text-white/30">Local time</span>
           </div>
           <div className="space-y-2.5">
-            {sortedSessions.map((session, idx) => {
+            {sortedSessions.length === 0 ? (
+              <p className="text-sm font-mono text-white/50">
+                {new Date(race.race_date).toLocaleDateString()} · {race.circuit.name}
+              </p>
+            ) : sortedSessions.map((session, idx) => {
               const sessionTime = new Date(session.date_start).getTime();
               const isPast = sessionTime < nowTime;
               const isNext = idx === nextSessionIndex;
+              const topThree = isPast ? (session.results ?? []).filter((result) => result.finish_position != null) : [];
 
               return (
                 <div
                   key={`${session.session_type}-${idx}`}
-                  className={`flex items-center justify-between py-3 px-4 rounded text-sm font-mono transition-colors ${
+                  className={`py-3 px-4 rounded text-sm font-mono transition-colors ${
                     isNext
                       ? "bg-[#E10600]/10 border border-[#E10600]/40 text-white"
                       : isPast
@@ -137,33 +113,40 @@ export function WeekendPreview({ status, race, liveStandings, liveLap, weather }
                         : "text-white/90 bg-white/5"
                   }`}
                 >
-                  <div className="flex items-center gap-3">
-                    <span
-                      className={`text-[10px] font-bold px-2 py-0.5 rounded ${
-                        isNext
-                          ? "bg-[#E10600] text-white"
-                          : isPast
-                            ? "bg-white/5 text-white/30"
-                            : "bg-white/10 text-white/70"
-                      }`}
-                    >
-                      {session.session_type}
-                    </span>
-                    <span className="font-sans font-medium text-sm">
-                      {session.session_name ?? session.session_type}
-                    </span>
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <span
+                        className={`text-[10px] font-bold px-2 py-0.5 rounded ${
+                          isNext
+                            ? "bg-[#E10600] text-white"
+                            : isPast
+                              ? "bg-white/5 text-white/30"
+                              : "bg-white/10 text-white/70"
+                        }`}
+                      >
+                        {session.session_type}
+                      </span>
+                      <span className="font-sans font-medium text-sm">
+                        {session.session_name ?? session.session_type}
+                      </span>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-xs">
+                        {new Date(session.date_start).toLocaleString(undefined, {
+                          weekday: "short",
+                          month: "short",
+                          day: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </span>
+                    </div>
                   </div>
-                  <div className="text-right">
-                    <span className="text-xs">
-                      {new Date(session.date_start).toLocaleString(undefined, {
-                        weekday: "short",
-                        month: "short",
-                        day: "numeric",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
-                    </span>
-                  </div>
+                  {topThree.length > 0 && (
+                    <p className="mt-2 text-[11px] font-mono text-white/50">
+                      {topThree.map((result) => `${result.finish_position} ${result.driver.broadcast_name}`).join(" · ")}
+                    </p>
+                  )}
                 </div>
               );
             })}

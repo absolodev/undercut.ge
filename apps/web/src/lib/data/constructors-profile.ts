@@ -163,13 +163,13 @@ export async function getConstructorSeasonHistory(
     season_results AS (
       SELECT
         r.season_year as year,
-        COUNT(*) FILTER (WHERE res.finish_position = 1)::int as wins,
-        COUNT(*) FILTER (WHERE res.finish_position <= 3)::int as podiums,
-        COALESCE(SUM(res.points), 0)::float as points
+        COUNT(*) FILTER (WHERE s.session_type = 'R' AND res.finish_position = 1)::int as wins,
+        COUNT(*) FILTER (WHERE s.session_type = 'R' AND res.finish_position <= 3)::int as podiums,
+        COALESCE(SUM(res.points) FILTER (WHERE s.session_type IN ('R', 'S')), 0)::float as points
       FROM f1_results res
       JOIN f1_sessions s ON res.session_id = s.id
       JOIN f1_races r ON s.race_id = r.id
-      WHERE res.constructor_id = ${constructorId} AND s.session_type = 'R'
+      WHERE res.constructor_id = ${constructorId} AND s.session_type IN ('R', 'S')
       GROUP BY r.season_year
     ),
     season_drivers AS (

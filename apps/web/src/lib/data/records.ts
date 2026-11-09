@@ -1,4 +1,5 @@
 import { prisma } from "@pitwall/db";
+import { CURRENT_SEASON } from "@/lib/config";
 
 /** Minimum season year with race results loaded in the DB (UI seasons filter). */
 export const UI_MIN_SEASON = 2020;
@@ -74,6 +75,49 @@ export async function getMostWins(): Promise<DriverRecordRow[]> {
     JOIN f1_drivers d ON r.driver_id = d.id
     JOIN f1_constructors c ON r.constructor_id = c.id
     WHERE r.finish_position = 1
+      AND s.session_type = 'R'
+    GROUP BY d.id, d.driver_ref, d.full_name, d.first_name, d.last_name
+    ORDER BY count DESC
+    LIMIT 20
+  `;
+  return mapRecordRows(rows);
+}
+
+/** Grand Prix fastest laps. Hidden until 2020–current has at least one stored flag. */
+export async function getMostFastestLaps(): Promise<DriverRecordRow[]> {
+  const gate = await prisma.$queryRaw<{ n: bigint }[]>`
+    SELECT COUNT(*)::bigint AS n
+    FROM f1_results res
+    JOIN f1_sessions s ON res.session_id = s.id
+    JOIN f1_races race ON s.race_id = race.id
+    WHERE res.fastest_lap = true
+      AND s.session_type = 'R'
+      AND race.season_year BETWEEN ${UI_MIN_SEASON} AND ${CURRENT_SEASON}
+  `;
+  if (Number(gate[0]?.n ?? 0) === 0) return [];
+
+  const rows = await prisma.$queryRaw<RawRecordRow[]>`
+    SELECT
+      d.id,
+      d.driver_ref,
+      d.full_name,
+      d.first_name,
+      d.last_name,
+      COUNT(*)::int AS count,
+      COALESCE(
+        json_agg(DISTINCT jsonb_build_object(
+          'constructor_ref', c.constructor_ref,
+          'name', c.name,
+          'logo_url', c.logo_url,
+          'color_primary', c.color_primary
+        )) FILTER (WHERE c.id IS NOT NULL),
+        '[]'::json
+      ) AS constructors
+    FROM f1_results r
+    JOIN f1_sessions s ON r.session_id = s.id
+    JOIN f1_drivers d ON r.driver_id = d.id
+    JOIN f1_constructors c ON r.constructor_id = c.id
+    WHERE r.fastest_lap = true
       AND s.session_type = 'R'
     GROUP BY d.id, d.driver_ref, d.full_name, d.first_name, d.last_name
     ORDER BY count DESC

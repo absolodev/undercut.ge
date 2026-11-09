@@ -13,6 +13,10 @@ type Driver = {
   code: string | null;
   is_active: boolean;
   headshot_url?: string | null;
+  championship_position?: number | null;
+  points?: number | null;
+  wins?: number | null;
+  constructor_name?: string | null;
 };
 
 function DriverGrid({ drivers, emptyMessage }: { drivers: Driver[]; emptyMessage?: string }) {
@@ -51,6 +55,16 @@ function DriverGrid({ drivers, emptyMessage }: { drivers: Driver[]; emptyMessage
               )}
             </div>
           </div>
+          {(d.championship_position != null || d.points != null || d.constructor_name) && (
+            <div className="mt-3 text-[11px] font-mono text-white/50 leading-relaxed">
+              {d.championship_position != null && <div>P{d.championship_position}</div>}
+              {d.constructor_name && <div>{d.constructor_name}</div>}
+              <div>
+                {d.points != null ? `${d.points} pts` : ""}
+                {d.wins != null && d.wins > 0 ? `${d.points != null ? " · " : ""}${d.wins} wins` : ""}
+              </div>
+            </div>
+          )}
           <div className="mt-auto pt-4 flex justify-between items-end">
             <div className="text-xs text-white/50">{d.nationality}</div>
             {d.code && (

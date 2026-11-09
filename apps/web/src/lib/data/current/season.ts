@@ -2,94 +2,22 @@ import { prisma, readSeasonNews, type SeasonNewsItem as CachedNewsItem } from "@
 import { pickActiveWeekendRace, pickNextRace } from "@pitwall/utils";
 import { CURRENT_SEASON } from "@/lib/config";
 
-function ensureRaceSessions<
-  T extends {
-    id: number;
-    race_date: Date;
-    sessions: Array<{
-      id?: number;
-      race_id?: number;
-      session_type: string;
-      session_name: string | null;
-      date_start: Date;
-      date_end?: Date | null;
-    }>;
-  },
->(race: T | null): T | null {
-  if (!race) return null;
-  if (race.sessions && race.sessions.length >= 3) {
-    return race;
-  }
-
-  const raceSunday = new Date(race.race_date);
-  const fri = new Date(raceSunday);
-  fri.setUTCDate(fri.getUTCDate() - 2);
-  const sat = new Date(raceSunday);
-  sat.setUTCDate(sat.getUTCDate() - 1);
-
-  const fp1Date = new Date(fri);
-  fp1Date.setUTCHours(11, 30, 0, 0);
-  const fp2Date = new Date(fri);
-  fp2Date.setUTCHours(15, 0, 0, 0);
-  const fp3Date = new Date(sat);
-  fp3Date.setUTCHours(10, 30, 0, 0);
-  const qualiDate = new Date(sat);
-  qualiDate.setUTCHours(14, 0, 0, 0);
-  const raceDate = new Date(raceSunday);
-  raceDate.setUTCHours(13, 0, 0, 0);
-
-  const generatedSessions = [
-    {
-      id: 1000 + race.id * 10 + 1,
-      race_id: race.id,
-      session_type: "FP1",
-      session_name: "Practice 1",
-      date_start: fp1Date,
-      date_end: new Date(fp1Date.getTime() + 3600000),
-    },
-    {
-      id: 1000 + race.id * 10 + 2,
-      race_id: race.id,
-      session_type: "FP2",
-      session_name: "Practice 2",
-      date_start: fp2Date,
-      date_end: new Date(fp2Date.getTime() + 3600000),
-    },
-    {
-      id: 1000 + race.id * 10 + 3,
-      race_id: race.id,
-      session_type: "FP3",
-      session_name: "Practice 3",
-      date_start: fp3Date,
-      date_end: new Date(fp3Date.getTime() + 3600000),
-    },
-    {
-      id: 1000 + race.id * 10 + 4,
-      race_id: race.id,
-      session_type: "Q",
-      session_name: "Qualifying",
-      date_start: qualiDate,
-      date_end: new Date(qualiDate.getTime() + 3600000),
-    },
-    {
-      id: 1000 + race.id * 10 + 5,
-      race_id: race.id,
-      session_type: "R",
-      session_name: "Grand Prix",
-      date_start: raceDate,
-      date_end: new Date(raceDate.getTime() + 7200000),
-    },
-  ];
-
-  return {
-    ...race,
-    sessions: generatedSessions,
-  };
-}
-
 const raceInclude = {
   circuit: true,
-  sessions: { orderBy: { date_start: "asc" as const } },
+  sessions: {
+    orderBy: { date_start: "asc" as const },
+    include: {
+      results: {
+        where: { finish_position: { not: null } },
+        orderBy: { finish_position: "asc" as const },
+        take: 3,
+        include: {
+          driver: { select: { broadcast_name: true } },
+          constructor: false,
+        },
+      },
+    },
+  },
 };
 
 function utcDay(now: Date, dayOffset: number): Date {
@@ -108,7 +36,7 @@ export async function getNextRace(seasonYear: number = CURRENT_SEASON) {
     include: raceInclude,
   });
 
-  return ensureRaceSessions(pickNextRace(races, now));
+  return pickNextRace(races, now);
 }
 
 export async function getActiveWeekendRace(seasonYear: number = CURRENT_SEASON) {
@@ -122,7 +50,7 @@ export async function getActiveWeekendRace(seasonYear: number = CURRENT_SEASON) 
     include: raceInclude,
   });
 
-  return ensureRaceSessions(pickActiveWeekendRace(races, now));
+  return pickActiveWeekendRace(races, now);
 }
 
 async function getComputedStandings(seasonYear: number) {
@@ -135,15 +63,17 @@ async function getComputedStandings(seasonYear: number) {
       number: number | null;
       headshot_url: string | null;
       points: number;
+      wins: number;
     }>
   >`
     SELECT d.id as driver_id, d.driver_ref, d.full_name, d.broadcast_name, d.number, d.headshot_url,
-      COALESCE(SUM(res.points), 0)::float as points
+      COALESCE(SUM(res.points), 0)::float as points,
+      COUNT(*) FILTER (WHERE res.finish_position = 1 AND s.session_type = 'R')::int as wins
     FROM f1_results res
     JOIN f1_sessions s ON res.session_id = s.id
     JOIN f1_races r ON s.race_id = r.id
     JOIN f1_drivers d ON res.driver_id = d.id
-    WHERE r.season_year = ${seasonYear} AND s.session_type = 'R'
+    WHERE r.season_year = ${seasonYear} AND s.session_type IN ('R', 'S')
     GROUP BY d.id, d.driver_ref, d.full_name, d.broadcast_name, d.number, d.headshot_url
     ORDER BY points DESC, d.full_name ASC
   `;
@@ -156,15 +86,17 @@ async function getComputedStandings(seasonYear: number) {
       color_primary: string | null;
       logo_url: string | null;
       points: number;
+      wins: number;
     }>
   >`
     SELECT c.id as constructor_id, c.constructor_ref, c.name, c.color_primary, c.logo_url,
-      COALESCE(SUM(res.points), 0)::float as points
+      COALESCE(SUM(res.points), 0)::float as points,
+      COUNT(*) FILTER (WHERE res.finish_position = 1 AND s.session_type = 'R')::int as wins
     FROM f1_results res
     JOIN f1_sessions s ON res.session_id = s.id
     JOIN f1_races r ON s.race_id = r.id
     JOIN f1_constructors c ON res.constructor_id = c.id
-    WHERE r.season_year = ${seasonYear} AND s.session_type = 'R'
+    WHERE r.season_year = ${seasonYear} AND s.session_type IN ('R', 'S')
     GROUP BY c.id, c.constructor_ref, c.name, c.color_primary, c.logo_url
     ORDER BY points DESC, c.name ASC
   `;
@@ -178,6 +110,7 @@ async function getComputedStandings(seasonYear: number) {
     drivers: driverRows.map((row, i) => ({
       position: i + 1,
       points: row.points,
+      wins: Number(row.wins),
       driver: {
         full_name: row.full_name,
         broadcast_name: row.broadcast_name,
@@ -189,6 +122,7 @@ async function getComputedStandings(seasonYear: number) {
     constructors: constructorRows.map((row, i) => ({
       position: i + 1,
       points: row.points,
+      wins: Number(row.wins),
       constructor: {
         name: row.name,
         color_primary: row.color_primary,
@@ -301,4 +235,52 @@ export async function getCurrentSeasonRecord() {
       champion_constructor: { select: { name: true } },
     },
   });
+}
+
+export async function getOffAirRaceStrip(seasonYear: number = CURRENT_SEASON) {
+  const race = await prisma.f1_races.findFirst({
+    where: {
+      season_year: seasonYear,
+      race_date: { lte: new Date() },
+      sessions: {
+        some: {
+          session_type: "R",
+          results: { some: { finish_position: { not: null } } },
+        },
+      },
+    },
+    orderBy: { race_date: "desc" },
+    include: {
+      sessions: {
+        where: { session_type: "R" },
+        include: {
+          results: {
+            where: { finish_position: { gte: 1, lte: 3 } },
+            orderBy: { finish_position: "asc" },
+            include: {
+              driver: { select: { broadcast_name: true, full_name: true } },
+              constructor: false,
+            },
+          },
+          weather_snapshots: { orderBy: { recorded_at: "desc" }, take: 1 },
+        },
+      },
+    },
+  });
+  if (!race) return null;
+  const session = race.sessions[0];
+  const weather = session?.weather_snapshots[0] ?? null;
+  return {
+    race_name: race.race_name,
+    year: race.season_year,
+    round: race.round,
+    podium: (session?.results ?? []).map((result) => result.driver.broadcast_name || result.driver.full_name),
+    weather: weather
+      ? {
+          air_temp: weather.air_temp,
+          track_temp: weather.track_temp,
+          rainfall: weather.rainfall,
+        }
+      : null,
+  };
 }

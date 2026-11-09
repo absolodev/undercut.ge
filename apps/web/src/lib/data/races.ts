@@ -1,7 +1,5 @@
 import { prisma } from "@pitwall/db";
 
-const STINT_COMPOUNDS = ["MEDIUM", "HARD", "SOFT", "HARD", "SOFT"] as const;
-
 function deriveStintsFromPitStops(
   pitStops: Array<{ id: number; driver_id: number; lap_number: number; driver: { id: number; broadcast_name: string; last_name: string } }>,
   totalLaps: number,
@@ -40,7 +38,7 @@ function deriveStintsFromPitStops(
         id: syntheticId++,
         driver_id: driverId,
         stint_number: i + 1,
-        compound: STINT_COMPOUNDS[i] ?? "HARD",
+        compound: "UNKNOWN",
         start_lap: startLap,
         end_lap: endLap,
         driver,
@@ -107,6 +105,30 @@ export async function getRaceArchive(year: number, round: number) {
   if (!totalLaps && raceSession.results.length > 0) {
     totalLaps = Math.max(...raceSession.results.map((r) => r.laps));
     race.total_laps = totalLaps;
+  }
+
+  const messageDriverIds = [
+    ...new Set(
+      race.sessions.flatMap((session) =>
+        session.race_control_messages
+          .map((message) => message.driver_id)
+          .filter((id): id is number => id != null),
+      ),
+    ),
+  ];
+  if (messageDriverIds.length > 0) {
+    const drivers = await prisma.f1_drivers.findMany({
+      where: { id: { in: messageDriverIds } },
+      select: { id: true, broadcast_name: true },
+    });
+    const names = new Map(drivers.map((driver) => [driver.id, driver.broadcast_name]));
+    for (const session of race.sessions) {
+      for (const message of session.race_control_messages) {
+        Object.assign(message, {
+          driver_name: message.driver_id ? names.get(message.driver_id) ?? null : null,
+        });
+      }
+    }
   }
 
   if (raceSession.stints.length === 0 && raceSession.pit_stops.length > 0 && totalLaps > 0) {

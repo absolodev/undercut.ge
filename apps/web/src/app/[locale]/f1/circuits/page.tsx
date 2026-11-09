@@ -46,6 +46,7 @@ export default async function CircuitsPage({
               </div>
 
               <div className="mt-auto flex justify-between items-end">
+                <div className="text-[10px] font-mono text-white/40">{c.raceCount} races</div>
                 {c.length_meters && (
                   <div className="text-[10px] font-mono text-white/30 bg-white/5 px-2 py-0.5 rounded">
                     {(c.length_meters / 1000).toFixed(3)} km

@@ -10,6 +10,7 @@ interface StandingRow {
   label: string;
   sublabel?: string;
   points: number;
+  wins?: number;
   color?: string;
   logoUrl?: string | null;
   constructorRef?: string | null;
@@ -26,6 +27,7 @@ interface SeasonDashboardProps {
     round: number;
     race_date: Date;
     circuit: { name: string; country: string | null; location?: string | null; circuit_ref?: string };
+    sessions?: Array<{ session_type: string; date_start: Date }>;
   } | null;
   countdownSeconds: number | null;
   driverStandings: StandingRow[];
@@ -62,12 +64,14 @@ function StandingsTable({
   emptyHint,
   viewAllHref,
   viewAllLabel,
+  winsLabel,
 }: {
   title: string;
   rows: StandingRow[];
   emptyHint: string;
   viewAllHref?: string;
   viewAllLabel?: string;
+  winsLabel: (count: number) => string;
 }) {
   return (
     <article className="bg-[#111] border border-white/10 rounded-lg p-5">
@@ -108,7 +112,12 @@ function StandingsTable({
                   <span className="text-xs font-mono text-white/40">{row.sublabel}</span>
                 )}
               </div>
-              <span className="font-mono text-white/50 text-xs shrink-0">{row.points} pts</span>
+              <span className="font-mono text-white/50 text-xs shrink-0 text-right">
+                {row.points} pts
+                {row.wins != null && row.wins > 0 ? (
+                  <span className="block text-white/35">{winsLabel(row.wins)}</span>
+                ) : null}
+              </span>
             </div>
           ))}
         </div>
@@ -190,6 +199,7 @@ export async function SeasonDashboard({
           emptyHint={t("noDriverStandings")}
           viewAllHref={`/f1/drivers?season=${seasonYear}`}
           viewAllLabel={t("viewAll")}
+          winsLabel={(count) => t("standingWins", { count })}
         />
         <StandingsTable
           title={t("constructorsChampionship")}
@@ -197,6 +207,7 @@ export async function SeasonDashboard({
           emptyHint={t("noConstructorStandings")}
           viewAllHref={`/f1/constructors?season=${seasonYear}`}
           viewAllLabel={t("viewAll")}
+          winsLabel={(count) => t("standingWins", { count })}
         />
       </div>
 
@@ -280,6 +291,22 @@ function NextRaceCard({
           R{race.round} · {race.circuit.name}
         </p>
         <p className="text-xs font-mono text-[#E10600] mt-2">{countdown}</p>
+        {race.sessions && race.sessions.length > 0 ? (
+          <ul className="mt-3 space-y-1">
+            {[...race.sessions]
+              .sort((a, b) => new Date(a.date_start).getTime() - new Date(b.date_start).getTime())
+              .map((session) => (
+                <li key={`${session.session_type}-${new Date(session.date_start).toISOString()}`} className="text-[10px] font-mono text-white/50">
+                  {session.session_type}{" "}
+                  {new Date(session.date_start).toISOString().slice(0, 16).replace("T", " ")}Z
+                </li>
+              ))}
+          </ul>
+        ) : (
+          <p className="text-xs font-mono text-white/50 mt-2">
+            {new Date(race.race_date).toLocaleDateString()}
+          </p>
+        )}
         <Link
           href={`/f1/seasons/${seasonYear}/${race.round}`}
           className="inline-block mt-3 text-xs font-mono text-[#E10600] hover:underline"

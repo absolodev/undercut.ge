@@ -1,54 +1,46 @@
-"use client";
-
-import { useWebSocketConnection } from "@/lib/ws-connector";
-import { useLiveSessionBootstrap } from "@/hooks/use-live-session-bootstrap";
-import { TimingTower } from "@/components/live/timing-tower";
-import dynamic from "next/dynamic";
-import { SessionHeader } from "@/components/live/session-header";
-import { RightPanel } from "@/components/live/right-panel";
-import { BottomBar } from "@/components/live/bottom-bar";
-import { ProToolsOverlay } from "@/components/pro-tools/pro-tools-overlay";
+import { Link } from "@/i18n/navigation";
 import { LiveShell } from "@/components/live/live-shell";
+import { getOffAirRaceStrip } from "@/lib/data/current/season";
+import { resolveLiveSessionStatus } from "@/lib/live-status-server";
+import { LiveClient } from "./live-client";
 
-const TrackMap = dynamic(
-  () => import("@/components/live/track-map/track-map").then((mod) => mod.TrackMap),
-  {
-    ssr: false,
-    loading: () => (
-      <div className="w-full h-full flex items-center justify-center bg-black text-white/50 text-xs font-mono">
-        LOADING MAP...
-      </div>
-    ),
-  }
-);
+export const dynamic = "force-dynamic";
 
-export default function LivePage() {
-  useWebSocketConnection();
-  useLiveSessionBootstrap();
+export default async function LivePage() {
+  const status = await resolveLiveSessionStatus();
+  const summary = status.mode === "live" ? null : await getOffAirRaceStrip();
 
   return (
     <LiveShell>
-      <SessionHeader />
-
-      <div className="flex flex-1 overflow-hidden">
-        <div className="flex-1 border-r border-white/10 flex flex-col relative">
-          <TimingTower />
-          <ProToolsOverlay />
+      {summary && (
+        <div className="shrink-0 border-b border-white/10 bg-[#111] px-4 py-3">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+            <span className="font-mono text-[10px] uppercase text-white/40">Last race</span>
+            <span className="font-semibold">{summary.race_name}</span>
+            {summary.podium.length > 0 && (
+              <span className="font-mono text-xs text-white/70">
+                {summary.podium.map((name, index) => `${index + 1} ${name}`).join(" · ")}
+              </span>
+            )}
+            <Link
+              href={`/f1/seasons/${summary.year}/${summary.round}`}
+              className="font-mono text-xs text-[#E10600] hover:underline"
+            >
+              RESULTS →
+            </Link>
+            {summary.weather && (
+              <span className="font-mono text-xs text-white/50">
+                Air {summary.weather.air_temp == null ? "—" : `${summary.weather.air_temp.toFixed(1)}°`}
+                {" · "}
+                Track {summary.weather.track_temp == null ? "—" : `${summary.weather.track_temp.toFixed(1)}°`}
+                {" · "}
+                {summary.weather.rainfall ? "Rain" : "Dry"}
+              </span>
+            )}
+          </div>
         </div>
-
-        <section className="flex-1 flex flex-col min-w-0 bg-[#000] relative" aria-label="Track map">
-          <div className="flex-1 overflow-hidden">
-            <TrackMap />
-          </div>
-          <div className="h-10 border-t border-white/10 bg-[#111] shrink-0">
-            <BottomBar />
-          </div>
-        </section>
-
-        <aside className="w-[320px] border-l border-white/10 bg-[#111] flex flex-col shrink-0" aria-label="Session details">
-          <RightPanel />
-        </aside>
-      </div>
+      )}
+      <LiveClient />
     </LiveShell>
   );
 }

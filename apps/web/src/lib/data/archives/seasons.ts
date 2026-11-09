@@ -22,12 +22,19 @@ export async function getSeasonOverview(year: number) {
     include: {
       circuit: true,
       sessions: {
-        where: { session_type: "R" },
+        where: { session_type: { in: ["R", "Q"] } },
         include: {
           results: {
             take: 3,
             orderBy: { finish_position: "asc" },
             include: { driver: true, constructor: true },
+          },
+          qualifying_results: {
+            where: { position: 1 },
+            include: {
+              driver: { select: { last_name: true, full_name: true } },
+              constructor: false,
+            },
           },
         },
       },

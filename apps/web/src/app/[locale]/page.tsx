@@ -13,7 +13,7 @@ import {
   getSeasonNews,
 } from "@/lib/data/current/season";
 import { getSeasonStats } from "@/lib/data/season-grid";
-import { getMostWins, getMostPoles, getRecordsDataCoverage } from "@/lib/data/records";
+import { getMostFastestLaps, getMostWins, getMostPoles, getRecordsDataCoverage } from "@/lib/data/records";
 import { getLiveLapCount, getLiveRaceStandings } from "@/lib/data/live/standings";
 import { getLiveWeather } from "@/lib/data/live/weather";
 import { raceStartInstant } from "@pitwall/utils";
@@ -53,7 +53,7 @@ export default async function HomePage({
   const locale = await setLocaleFromParams(params);
   const seasonYear = CURRENT_SEASON;
   const t = await getTranslations("Home");
-  const [status, standings, recentResults, weekendRace, nextRace, seasonStats, news, wins, poles, coverage] =
+  const [status, standings, recentResults, weekendRace, nextRace, seasonStats, news, wins, poles, fastestLaps, coverage] =
     await Promise.all([
       resolveLiveSessionStatus(),
       getLatestStandings(seasonYear),
@@ -64,6 +64,7 @@ export default async function HomePage({
       getSeasonNews(),
       getMostWins(),
       getMostPoles(),
+      getMostFastestLaps(),
       getRecordsDataCoverage(),
     ]);
 
@@ -82,6 +83,7 @@ export default async function HomePage({
     label: s.driver.full_name,
     sublabel: s.driver.broadcast_name,
     points: s.points,
+    wins: "wins" in s ? Number(s.wins) : undefined,
     driverRef: "driver_ref" in s.driver ? s.driver.driver_ref : undefined,
     headshotUrl: "headshot_url" in s.driver ? s.driver.headshot_url : undefined,
   }));
@@ -90,6 +92,7 @@ export default async function HomePage({
     position: s.position,
     label: s.constructor.name,
     points: s.points,
+    wins: "wins" in s ? Number(s.wins) : undefined,
     color: s.constructor.color_primary ?? undefined,
     constructorRef: "constructor_ref" in s.constructor ? s.constructor.constructor_ref : undefined,
     logoUrl: "logo_url" in s.constructor ? s.constructor.logo_url : undefined,
@@ -171,7 +174,7 @@ export default async function HomePage({
 
       {status.mode !== "weekend" && (
         <div className="mt-10 space-y-8">
-          <RecordsSection wins={wins} poles={poles} coverageNote={coverageNote} />
+          <RecordsSection wins={wins} poles={poles} fastestLaps={fastestLaps} coverageNote={coverageNote} />
           <section className="text-sm text-white/50 leading-relaxed max-w-3xl">
             <p>{t("seoIntro", { year: seasonYear })}</p>
           </section>

@@ -7,6 +7,8 @@ export function PitStopSummary({ pitStops }: { pitStops: any[] }) {
     return <div className="p-8 text-center text-white/50 font-mono text-xs">No pit stop data available</div>;
   }
 
+  const split = pitStops.some((stop) => stop.pit_lane_time_ms != null);
+
   return (
     <div className="bg-[#111] border border-white/10 rounded-lg overflow-hidden">
       <table className="w-full text-left text-sm">
@@ -15,8 +17,8 @@ export function PitStopSummary({ pitStops }: { pitStops: any[] }) {
             <th className="p-3">LAP</th>
             <th className="p-3">DRIVER</th>
             <th className="p-3">STOP #</th>
-            <th className="p-3 text-right">DURATION</th>
-            <th className="p-3 text-right">TOTAL TIME</th>
+            <th className="p-3 text-right">{split ? "DURATION" : "PIT TIME"}</th>
+            {split && <th className="p-3 text-right">TOTAL TIME</th>}
           </tr>
         </thead>
         <tbody>
@@ -26,7 +28,9 @@ export function PitStopSummary({ pitStops }: { pitStops: any[] }) {
               <td className="p-3 font-semibold">{p.driver.broadcast_name}</td>
               <td className="p-3 text-white/50">{p.stop_number}</td>
               <td className="p-3 text-right font-bold text-sector-yellow">{p.duration_ms ? (p.duration_ms / 1000).toFixed(2) : "—"}s</td>
-              <td className="p-3 text-right text-white/50">{p.pit_lane_time_ms ? formatLapTime(p.pit_lane_time_ms) : "—"}</td>
+              {split && (
+                <td className="p-3 text-right text-white/50">{p.pit_lane_time_ms ? formatLapTime(p.pit_lane_time_ms) : "—"}</td>
+              )}
             </tr>
           ))}
         </tbody>

@@ -54,6 +54,9 @@
     "teams": "TEAMS",
     "wins": "WINS",
     "poles": "POLES",
+    "standingWins": "{count} wins",
+    "mostFastestLaps": "Most Fastest Laps",
+    "fastestLaps": "FASTEST LAPS",
     "noRecords": "No records available yet.",
     "seoIntro": "UnderCut is your unofficial Formula 1 data companion — live timing during race weekends, championship standings updated after every grand prix, driver and constructor profiles with career statistics, historical season archives from 1950 onward, and telemetry comparison tools. Explore the {year} season calendar, compare teammates head-to-head, and follow every point in the drivers' and constructors' championships."
   },
@@ -99,6 +102,7 @@
     "historical": "HISTORICAL",
     "wins": "WINS",
     "bestFinish": "Best",
+    "seasonStanding": "P{position} · {points} pts · {wins} wins",
     "backToAll": "← ALL CONSTRUCTORS",
     "careerStats": "Career Stats",
     "races": "RACE ENTRIES",

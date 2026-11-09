@@ -1,4 +1,5 @@
-import { getDriverProfile } from "@/lib/data/drivers-profile";
+import { getDriverProfile, getDriverRecentResults } from "@/lib/data/drivers-profile";
+import { RecentResults } from "@/components/profiles/recent-results";
 import { notFound } from "next/navigation";
 import { Link } from "@/i18n/navigation";
 import { DriverHeaderCard } from "@/components/profiles/driver-header-card";
@@ -38,6 +39,7 @@ export default async function DriverProfilePage({
   if (!data) notFound();
 
   const { driver, stats, poles, fastestLaps, seasonBreakdown } = data;
+  const recentResults = await getDriverRecentResults(driver.id);
   const seoName = getDriverSeoName(driver.driver_ref, locale, driver.full_name);
 
   const personJsonLd = {
@@ -65,6 +67,7 @@ export default async function DriverProfilePage({
         <PerformanceCharts seasonData={seasonBreakdown} driverId={driver.id} />
       </div>
 
+      <RecentResults results={recentResults} />
       <TeammateH2H driverId={driver.id} />
     </div>
   );

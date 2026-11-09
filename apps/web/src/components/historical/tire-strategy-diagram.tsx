@@ -54,7 +54,9 @@ export function TireStrategyDiagram({ stints, totalLaps }: { stints: any[], tota
                   const endLap = s.end_lap || totalLaps;
                   const startPct = (s.start_lap / totalLaps) * 100;
                   const widthPct = ((endLap - s.start_lap) / totalLaps) * 100;
-                  const color = TIRE_COLORS[s.compound as keyof typeof TIRE_COLORS] || "#888";
+                  const color = s.compound === "UNKNOWN"
+                    ? "#3a3a3a"
+                    : TIRE_COLORS[s.compound as keyof typeof TIRE_COLORS] || "#888";
                   
                   return (
                     <div 
@@ -67,7 +69,13 @@ export function TireStrategyDiagram({ stints, totalLaps }: { stints: any[], tota
                         opacity: 0.9
                       }}
                       title={`${s.compound}: L${s.start_lap} - L${endLap}`}
-                    />
+                    >
+                      {s.compound === "UNKNOWN" && widthPct > 6 && (
+                        <span className="absolute inset-0 flex items-center justify-center text-[9px] font-mono text-white/70">
+                          UNK
+                        </span>
+                      )}
+                    </div>
                   );
                 })}
               </div>

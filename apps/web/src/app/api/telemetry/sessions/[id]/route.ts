@@ -91,9 +91,10 @@ export async function GET(
       circuitName: session.race.circuit.name,
     },
     drivers: drivers.map((driver) => {
-      const laps = (typeof driver.laps === "string" ? JSON.parse(driver.laps) : driver.laps) ?? [];
+      const laps: Array<{ ms?: number | null; pit?: boolean; lap?: number }> =
+        (typeof driver.laps === "string" ? JSON.parse(driver.laps) : driver.laps) ?? [];
       const timed = laps.filter((lap) => lap.ms && !lap.pit);
-      const best = timed.reduce<number | null>((min, lap) => (min == null || (lap.ms ?? Infinity) < min ? lap.ms : min), null);
+      const best = timed.reduce<number | null>((min, lap) => (min == null || (lap.ms ?? Infinity) < min ? (lap.ms ?? null) : min), null);
       return {
         id: driver.driver_id,
         driverRef: driver.driver_ref,

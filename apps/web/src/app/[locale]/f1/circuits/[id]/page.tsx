@@ -32,7 +32,7 @@ export default async function CircuitProfilePage({
   const data = await getCircuitProfile(id);
   if (!data) notFound();
 
-  const { circuit, mostWins, raceHistory, fastestQualifying, poleEvolution } = data;
+  const { circuit, mostWins, raceHistory, fastestQualifying, poleEvolution, fastestRaceLap, latestWeather } = data;
   const mapData = (await getCircuitMapData(circuit.circuit_ref)) ?? undefined;
 
   return (
@@ -76,6 +76,8 @@ export default async function CircuitProfilePage({
       <CircuitRecords
         fastestQualifying={fastestQualifying as any}
         mostWins={mostWins as any}
+        fastestRaceLap={fastestRaceLap as any}
+        latestWeather={latestWeather}
       />
 
       {/* Race History Table */}

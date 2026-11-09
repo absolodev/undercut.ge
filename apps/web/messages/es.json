@@ -54,6 +54,9 @@
     "teams": "EQUIPOS",
     "wins": "VICTORIAS",
     "poles": "POLES",
+    "standingWins": "{count} victorias",
+    "mostFastestLaps": "Más vueltas rápidas",
+    "fastestLaps": "VUELTAS RÁPIDAS",
     "noRecords": "Aún no hay récords disponibles.",
     "seoIntro": "UnderCut es tu compañero no oficial de datos de Fórmula 1: cronometraje en vivo durante los fines de semana de carrera, clasificaciones actualizadas tras cada gran premio, perfiles de pilotos y constructores con estadísticas de carrera, archivos históricos desde 1950 y herramientas de telemetría. Explora el calendario de la temporada {year}, compara compañeros de equipo y sigue cada punto en los campeonatos de pilotos y constructores."
   },
@@ -99,6 +102,7 @@
     "historical": "HISTÓRICO",
     "wins": "VICTORIAS",
     "bestFinish": "Mejor",
+    "seasonStanding": "P{position} · {points} pts · {wins} victorias",
     "backToAll": "← TODOS LOS CONSTRUCTORES",
     "careerStats": "Estadísticas de Carrera",
     "races": "CARRERAS",

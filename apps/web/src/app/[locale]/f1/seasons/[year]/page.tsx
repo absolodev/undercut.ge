@@ -1,4 +1,5 @@
 import { getSeasonOverview } from "@/lib/data/archives/seasons";
+import { getLatestStandings } from "@/lib/data/current/season";
 import { CURRENT_SEASON } from "@/lib/config";
 import { UI_MIN_SEASON } from "@/lib/season";
 import { Link } from "@/i18n/navigation";
@@ -29,7 +30,10 @@ export default async function SeasonOverviewPage({
     notFound();
   }
 
-  const races = await getSeasonOverview(year);
+  const [races, standings] = await Promise.all([
+    getSeasonOverview(year),
+    getLatestStandings(year),
+  ]);
 
   if (!races || races.length === 0) {
     return (
@@ -82,6 +86,8 @@ export default async function SeasonOverviewPage({
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {races.map((race) => {
           const raceSession = race.sessions.find(s => s.session_type === "R");
+          const quali = race.sessions.find(s => s.session_type === "Q");
+          const pole = quali?.qualifying_results?.[0];
           const podium = raceSession?.results || [];
 
           return (
@@ -120,11 +126,70 @@ export default async function SeasonOverviewPage({
                 )) : (
                   <div className="text-white/30 text-xs italic">Results not available</div>
                 )}
+                {pole?.driver.last_name && (
+                  <div className="text-xs font-mono text-white/50 pt-1">Pole: {pole.driver.last_name}</div>
+                )}
               </div>
             </Link>
           );
         })}
       </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-10">
+        <ChampionshipTable
+          title="Drivers' Championship"
+          rows={standings.drivers.map((row) => ({
+            position: row.position,
+            name: row.driver.full_name,
+            points: row.points,
+            wins: "wins" in row ? Number(row.wins) : 0,
+          }))}
+        />
+        <ChampionshipTable
+          title="Constructors' Championship"
+          rows={standings.constructors.map((row) => ({
+            position: row.position,
+            name: row.constructor.name,
+            points: row.points,
+            wins: "wins" in row ? Number(row.wins) : 0,
+          }))}
+        />
+      </div>
     </div>
+  );
+}
+
+function ChampionshipTable({
+  title,
+  rows,
+}: {
+  title: string;
+  rows: Array<{ position: number; name: string; points: number; wins: number }>;
+}) {
+  if (rows.length === 0) return null;
+  return (
+    <section className="bg-[#111] border border-white/10 rounded-lg overflow-hidden">
+      <h2 className="font-mono text-xs text-white/40 uppercase tracking-wider p-4 border-b border-white/10">{title}</h2>
+      <table className="w-full text-left text-sm">
+        <thead className="font-mono text-[10px] text-white/40">
+          <tr>
+            <th className="p-3">POS</th>
+            <th className="p-3">NAME</th>
+            <th className="p-3 text-right">PTS</th>
+            <th className="p-3 text-right">WINS</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => (
+            <tr key={`${row.position}-${row.name}`} className="border-t border-white/5">
+              <td className="p-3 font-mono text-white/50">{row.position}</td>
+              <td className="p-3 font-semibold">{row.name}</td>
+              <td className="p-3 font-mono text-right">{row.points}</td>
+              <td className="p-3 font-mono text-right">{row.wins}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </section>
   );
 }

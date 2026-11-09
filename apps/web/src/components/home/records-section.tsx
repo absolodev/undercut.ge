@@ -6,6 +6,7 @@ import type { DriverRecordRow } from "@/lib/data/records";
 interface RecordsSectionProps {
   wins: DriverRecordRow[];
   poles: DriverRecordRow[];
+  fastestLaps?: DriverRecordRow[];
   coverageNote: string;
 }
 
@@ -95,7 +96,7 @@ function RecordTable({
   );
 }
 
-export async function RecordsSection({ wins, poles, coverageNote }: RecordsSectionProps) {
+export async function RecordsSection({ wins, poles, fastestLaps = [], coverageNote }: RecordsSectionProps) {
   const t = await getTranslations("Home");
 
   return (
@@ -128,6 +129,18 @@ export async function RecordsSection({ wins, poles, coverageNote }: RecordsSecti
           emptyLabel={t("noRecords")}
         />
       </div>
+      {fastestLaps.length > 0 && (
+        <RecordTable
+          title={t("mostFastestLaps")}
+          rows={fastestLaps}
+          countLabel={t("fastestLaps")}
+          accentClass="text-[#b026ff]"
+          posLabel={t("pos")}
+          driverLabel={t("driver")}
+          teamsLabel={t("teams")}
+          emptyLabel={t("noRecords")}
+        />
+      )}
     </section>
   );
 }

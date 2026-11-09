@@ -164,24 +164,110 @@ async function getConstructorsFromResults(seasonYear: number) {
   `;
 }
 
+async function attachDriverSeasonFacts<T extends { id: number; number?: number | null }>(
+  seasonYear: number,
+  drivers: T[],
+) {
+  if (!drivers.length) return drivers;
+
+  const latestRound = await prisma.f1_driver_standings.findFirst({
+    where: { season_year: seasonYear },
+    orderBy: { round: "desc" },
+    select: { round: true },
+  });
+  const standings = latestRound
+    ? await prisma.f1_driver_standings.findMany({
+        where: { season_year: seasonYear, round: latestRound.round },
+      })
+    : [];
+  const byDriver = new Map(standings.map((row) => [row.driver_id, row]));
+
+  const latestRace = await prisma.f1_races.findFirst({
+    where: { season_year: seasonYear, entries: { some: {} } },
+    orderBy: { round: "desc" },
+    select: { id: true },
+  });
+  const entries = latestRace
+    ? await prisma.f1_race_entries.findMany({
+        where: { race_id: latestRace.id },
+        include: { constructor: { select: { name: true } } },
+      })
+    : [];
+  const teamByDriver = new Map(entries.map((entry) => [entry.driver_id, entry.constructor.name]));
+
+  return drivers
+    .map((driver) => {
+      const standing = byDriver.get(driver.id);
+      return {
+        ...driver,
+        championship_position: standing?.position ?? null,
+        points: standing?.points ?? null,
+        wins: standing?.wins ?? null,
+        constructor_name: teamByDriver.get(driver.id) ?? null,
+      };
+    })
+    .sort((a, b) => {
+      if (a.championship_position == null && b.championship_position == null) {
+        return (a.number ?? 999) - (b.number ?? 999);
+      }
+      if (a.championship_position == null) return 1;
+      if (b.championship_position == null) return -1;
+      return a.championship_position - b.championship_position;
+    });
+}
+
+async function attachConstructorSeasonFacts<T extends { id: number; name?: string | null }>(
+  seasonYear: number,
+  constructors: T[],
+) {
+  if (!constructors.length) return constructors;
+  const latestRound = await prisma.f1_constructor_standings.findFirst({
+    where: { season_year: seasonYear },
+    orderBy: { round: "desc" },
+  });
+  if (!latestRound) {
+    return constructors.map((constructor) => ({
+      ...constructor,
+      season_position: null as number | null,
+      season_points: null as number | null,
+      season_wins: null as number | null,
+    }));
+  }
+  const standings = await prisma.f1_constructor_standings.findMany({
+    where: { season_year: seasonYear, round: latestRound.round },
+  });
+  const byId = new Map(standings.map((row) => [row.constructor_id, row]));
+  return constructors
+    .map((constructor) => {
+      const standing = byId.get(constructor.id);
+      return {
+        ...constructor,
+        season_position: standing?.position ?? null,
+        season_points: standing?.points ?? null,
+        season_wins: standing?.wins ?? null,
+      };
+    })
+    .sort((a, b) => (a.season_position ?? 999) - (b.season_position ?? 999) || (a.name ?? "").localeCompare(b.name ?? ""));
+}
+
 export async function getSeasonGridDrivers(seasonYear: number) {
   const fromEntries = await getDriversFromRaceEntries(seasonYear);
-  if (fromEntries?.length) return fromEntries;
+  if (fromEntries?.length) return attachDriverSeasonFacts(seasonYear, fromEntries);
 
   const fromStandings = await getDriversFromStandings(seasonYear);
-  if (fromStandings?.length) return fromStandings;
+  if (fromStandings?.length) return attachDriverSeasonFacts(seasonYear, fromStandings);
 
-  return getDriversFromResults(seasonYear);
+  return attachDriverSeasonFacts(seasonYear, await getDriversFromResults(seasonYear));
 }
 
 export async function getSeasonConstructors(seasonYear: number) {
   const fromEntries = await getConstructorsFromRaceEntries(seasonYear);
-  if (fromEntries?.length) return fromEntries;
+  if (fromEntries?.length) return attachConstructorSeasonFacts(seasonYear, fromEntries);
 
   const fromStandings = await getConstructorsFromStandings(seasonYear);
-  if (fromStandings?.length) return fromStandings;
+  if (fromStandings?.length) return attachConstructorSeasonFacts(seasonYear, fromStandings);
 
-  return getConstructorsFromResults(seasonYear);
+  return attachConstructorSeasonFacts(seasonYear, await getConstructorsFromResults(seasonYear));
 }
 
 export async function getSeasonStats(seasonYear: number) {
