@@ -82,9 +82,9 @@ export function LapMapReplay({
   const marker = (distance: number) => pointAt(geometry, distance / maxDistance);
   const carA = marker(sampleA.distance_m);
   const carB = marker(sampleB.distance_m);
-  const sample = sampleA;
   const viewBox = `${circuit.viewBox.x} ${circuit.viewBox.y} ${circuit.viewBox.width} ${circuit.viewBox.height}`;
-  const dot = Math.min(circuit.viewBox.width, circuit.viewBox.height) * 0.018;
+  const track = Math.max(10, Math.min(circuit.viewBox.width, circuit.viewBox.height) * 0.03);
+  const dot = track * 0.55;
 
   return (
     <div className="bg-[#111] border border-white/10 rounded-lg p-4 sm:p-6">
@@ -98,8 +98,9 @@ export function LapMapReplay({
         </button>
       </div>
       <svg viewBox={viewBox} className="w-full h-72 bg-[#070707] rounded">
-        <path d={circuit.svgPath} fill="none" stroke="#8a8a8a" strokeWidth={dot * 1.4} strokeLinecap="round" strokeLinejoin="round" />
-        <path d={circuit.svgPath} fill="none" stroke="#1c1c1c" strokeWidth={dot} strokeLinecap="round" strokeLinejoin="round" />
+        <path d={circuit.svgPath} fill="none" stroke="#000" strokeWidth={track * 1.35} strokeLinecap="round" strokeLinejoin="round" />
+        <path d={circuit.svgPath} fill="none" stroke="#8a8a8a" strokeWidth={track} strokeLinecap="round" strokeLinejoin="round" />
+        <path d={circuit.svgPath} fill="none" stroke="#1c1c1c" strokeWidth={track * 0.72} strokeLinecap="round" strokeLinejoin="round" />
         <circle cx={carA.x} cy={carA.y} r={dot} fill="#E10600" stroke="#fff" strokeWidth={dot * 0.2} />
         <circle cx={carB.x} cy={carB.y} r={dot} fill="#00A2FF" stroke="#fff" strokeWidth={dot * 0.2} />
       </svg>

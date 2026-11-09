@@ -119,10 +119,9 @@ function atDistance(samples: Sample[], distance: number) {
 }
 
 function mergeByDistance(telA: Sample[], telB: Sample[]) {
-  const maxDist = Math.max(
-    telA[telA.length - 1]?.distance_m || 0,
-    telB[telB.length - 1]?.distance_m || 0
-  );
+  const endA = telA[telA.length - 1]?.distance_m || 0;
+  const endB = telB[telB.length - 1]?.distance_m || 0;
+  const maxDist = Math.min(endA, endB) || Math.max(endA, endB);
   const result = [];
   for (let distance = 0; distance <= maxDist; distance += 10) {
     const a = atDistance(telA, distance);

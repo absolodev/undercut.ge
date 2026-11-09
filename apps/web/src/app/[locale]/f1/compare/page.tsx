@@ -25,6 +25,9 @@ export default function ComparePage() {
   const nameB = selection?.driverB.name ?? "B";
   const last = data[data.length - 1];
   const top = (key: "speedA" | "speedB") => (data.length ? Math.max(...data.map((row) => row[key])) : 0);
+  const lapA = sectors.a?.lap != null ? sectors.a.lap / 1000 : last?.timeA;
+  const lapB = sectors.b?.lap != null ? sectors.b.lap / 1000 : last?.timeB;
+  const gap = lapA != null && lapB != null ? lapA - lapB : last?.delta;
 
   return (
     <div className="p-4 sm:p-8 max-w-7xl mx-auto space-y-6">
@@ -56,8 +59,8 @@ export default function ComparePage() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <Stat label={`${nameA} top speed`} value={`${top("speedA")} km/h`} />
           <Stat label={`${nameB} top speed`} value={`${top("speedB")} km/h`} />
-          <Stat label={`${nameA} lap`} value={`${last.timeA.toFixed(3)}s`} />
-          <Stat label={`${nameA} vs ${nameB}`} value={`${last.delta > 0 ? "+" : ""}${last.delta.toFixed(3)}s`} />
+          <Stat label={`${nameA} lap`} value={lapA != null ? `${lapA.toFixed(3)}s` : "—"} />
+          <Stat label={`${nameA} vs ${nameB}`} value={gap != null ? `${gap > 0 ? "+" : ""}${gap.toFixed(3)}s` : "—"} />
         </div>
       )}
 
