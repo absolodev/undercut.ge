@@ -206,21 +206,18 @@ async function syncJolpicaSprints(year: number, stats: Stats): Promise<void> {
   });
 
   for (const race of races) {
+    if (race.sessions.length === 0) continue;
     const url = `${JOLPICA}/${year}/${race.round}/sprint.json?limit=100`;
-    const response = await fetch(url, { headers: { "User-Agent": "undercut.ge" } });
-    if (response.status === 400 || response.status === 404) {
-      await sleep(200);
-      continue;
-    }
-    if (!response.ok) {
-      console.log(`  sprint ${year} R${race.round} HTTP ${response.status}`);
-      await sleep(400);
-      continue;
-    }
-    const data = (await response.json()) as {
+    let data: {
       MRData?: { RaceTable?: { Races?: Array<{ SprintResults?: Array<Record<string, unknown>> }> } };
-    };
-    const results = data.MRData?.RaceTable?.Races?.[0]?.SprintResults ?? [];
+    } | null;
+    try {
+      data = await fetchJson(url);
+    } catch (error) {
+      console.log(`  sprint ${year} R${race.round} ${error instanceof Error ? error.message : error}`);
+      continue;
+    }
+    const results = data?.MRData?.RaceTable?.Races?.[0]?.SprintResults ?? [];
     if (results.length === 0) {
       await sleep(200);
       continue;
@@ -715,6 +712,10 @@ async function syncOpenF1Year(year: number, stats: Stats, roundFilter?: number):
   });
 
   for (const race of races) {
+    if (race.race_date.getTime() > Date.now()) {
+      console.log(`— ${year} R${race.round} ${race.race_name} not raced yet, skipping OpenF1`);
+      continue;
+    }
     console.log(`— ${year} R${race.round} ${race.race_name}`);
     const byType = new Map(race.sessions.map((session) => [session.session_type, session]));
     const raceSession = byType.get("R");
