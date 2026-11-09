@@ -193,7 +193,25 @@ async function attachDriverSeasonFacts<T extends { id: number; number?: number |
         include: { constructor: { select: { name: true } } },
       })
     : [];
-  const teamByDriver = new Map(entries.map((entry) => [entry.driver_id, entry.constructor.name]));
+  let teamByDriver = new Map(entries.map((entry) => [entry.driver_id, entry.constructor.name]));
+  if (teamByDriver.size === 0) {
+    const latestRaceSession = await prisma.f1_sessions.findFirst({
+      where: {
+        session_type: "R",
+        race: { season_year: seasonYear },
+        results: { some: {} },
+      },
+      orderBy: { race: { round: "desc" } },
+      select: { id: true },
+    });
+    if (latestRaceSession) {
+      const results = await prisma.f1_results.findMany({
+        where: { session_id: latestRaceSession.id },
+        include: { constructor: { select: { name: true } } },
+      });
+      teamByDriver = new Map(results.map((result) => [result.driver_id, result.constructor.name]));
+    }
+  }
 
   return drivers
     .map((driver) => {
