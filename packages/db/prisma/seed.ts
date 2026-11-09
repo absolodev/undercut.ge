@@ -7,6 +7,7 @@ import {
 } from "./seed-enrichment";
 import { seedSessionDetailsForYear } from "./seed-session-details";
 import { seedStandingsForYear } from "./seed-standings";
+import { mapJolpicaResult } from "../src/session-facts";
 
 const JOLPICA_BASE = "https://api.jolpi.ca/ergast/f1";
 const DELAY_MS = 300;
@@ -28,7 +29,7 @@ function parseQualifyingTimeToMs(time: string | undefined | null): number | null
   return Number.isNaN(seconds) ? null : Math.round(seconds * 1000);
 }
 
-async function upsertDriverFromApi(driverData: {
+export async function upsertDriverFromApi(driverData: {
   driverId: string;
   code?: string;
   givenName: string;
@@ -57,7 +58,7 @@ async function upsertDriverFromApi(driverData: {
   return driver;
 }
 
-async function upsertConstructorFromApi(constructorData: {
+export async function upsertConstructorFromApi(constructorData: {
   constructorId: string;
   name: string;
   nationality: string;
@@ -410,10 +411,9 @@ async function seedRacesAndResults(year: number): Promise<void> {
           });
         }
 
-        const finishPos = resItem.position ? parseInt(resItem.position) : null;
         const gridPos = resItem.grid ? parseInt(resItem.grid) : null;
-        const points = resItem.points ? parseFloat(resItem.points) : 0;
-        const laps = resItem.laps ? parseInt(resItem.laps) : 0;
+        const number = resItem.number ? parseInt(resItem.number) : null;
+        const mapped = mapJolpicaResult(resItem);
 
         await prisma.f1_results.upsert({
           where: {
@@ -424,25 +424,17 @@ async function seedRacesAndResults(year: number): Promise<void> {
           },
           update: {
             constructor_id: constructor.id,
-            number: resItem.number ? parseInt(resItem.number) : null,
+            number,
             grid_position: gridPos,
-            finish_position: finishPos,
-            position_text: resItem.positionText || null,
-            points,
-            laps,
-            status: resItem.status || null,
+            ...mapped,
           },
           create: {
             session_id: session.id,
             driver_id: driver.id,
             constructor_id: constructor.id,
-            number: resItem.number ? parseInt(resItem.number) : null,
+            number,
             grid_position: gridPos,
-            finish_position: finishPos,
-            position_text: resItem.positionText || null,
-            points,
-            laps,
-            status: resItem.status || null,
+            ...mapped,
           }
         });
       }
@@ -503,6 +495,10 @@ async function seedQualifyingResults(year: number): Promise<void> {
         const driver = await upsertDriverFromApi(qItem.Driver);
         const constructor = await upsertConstructorFromApi(qItem.Constructor);
         const position = qItem.position ? parseInt(qItem.position) : null;
+        const q1 = parseQualifyingTimeToMs(qItem.Q1);
+        const q2 = parseQualifyingTimeToMs(qItem.Q2);
+        const q3 = parseQualifyingTimeToMs(qItem.Q3);
+        const number = qItem.number ? parseInt(qItem.number) : null;
 
         await prisma.f1_qualifying_results.upsert({
           where: {
@@ -513,21 +509,21 @@ async function seedQualifyingResults(year: number): Promise<void> {
           },
           update: {
             constructor_id: constructor.id,
-            number: qItem.number ? parseInt(qItem.number) : null,
+            number,
             position,
-            q1_time_ms: parseQualifyingTimeToMs(qItem.Q1),
-            q2_time_ms: parseQualifyingTimeToMs(qItem.Q2),
-            q3_time_ms: parseQualifyingTimeToMs(qItem.Q3),
+            ...(q1 != null ? { q1_time_ms: q1 } : {}),
+            ...(q2 != null ? { q2_time_ms: q2 } : {}),
+            ...(q3 != null ? { q3_time_ms: q3 } : {}),
           },
           create: {
             session_id: session.id,
             driver_id: driver.id,
             constructor_id: constructor.id,
-            number: qItem.number ? parseInt(qItem.number) : null,
+            number,
             position,
-            q1_time_ms: parseQualifyingTimeToMs(qItem.Q1),
-            q2_time_ms: parseQualifyingTimeToMs(qItem.Q2),
-            q3_time_ms: parseQualifyingTimeToMs(qItem.Q3),
+            q1_time_ms: q1,
+            q2_time_ms: q2,
+            q3_time_ms: q3,
           },
         });
       }

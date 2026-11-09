@@ -33,6 +33,8 @@ type OfLap = {
   duration_sector_2: number | null;
   duration_sector_3: number | null;
   is_pit_out_lap: boolean;
+  i1_speed: number | null;
+  i2_speed: number | null;
   st_speed: number | null;
 };
 
@@ -224,19 +226,33 @@ async function syncSession(ofSession: OfSession, sessionId: number, onlyIfMissin
     );
 
     await prisma.f1_telemetry.deleteMany({ where: { session_id: sessionId, driver_id: driver.id } });
-    await prisma.f1_laps.deleteMany({ where: { session_id: sessionId, driver_id: driver.id } });
-    if (laps.length) {
-      await prisma.f1_laps.createMany({
-        data: laps.map((lap) => ({
+    for (const lap of laps) {
+      const timing = {
+        is_pit_out_lap: Boolean(lap.is_pit_out_lap),
+        ...(lap.lap_duration ? { lap_time_ms: Math.round(lap.lap_duration * 1000) } : {}),
+        ...(lap.duration_sector_1 ? { sector_1_ms: Math.round(lap.duration_sector_1 * 1000) } : {}),
+        ...(lap.duration_sector_2 ? { sector_2_ms: Math.round(lap.duration_sector_2 * 1000) } : {}),
+        ...(lap.duration_sector_3 ? { sector_3_ms: Math.round(lap.duration_sector_3 * 1000) } : {}),
+        ...(lap.i1_speed != null ? { i1_speed: Math.round(lap.i1_speed) } : {}),
+        ...(lap.i2_speed != null ? { i2_speed: Math.round(lap.i2_speed) } : {}),
+        ...(lap.st_speed != null ? { st_speed: Math.round(lap.st_speed) } : {}),
+      };
+      await prisma.f1_laps.upsert({
+        where: {
+          session_id_driver_id_lap_number: {
+            session_id: sessionId,
+            driver_id: driver.id,
+            lap_number: lap.lap_number,
+          },
+        },
+        update: timing,
+        create: {
           session_id: sessionId,
           driver_id: driver.id,
           lap_number: lap.lap_number,
-          lap_time_ms: lap.lap_duration ? Math.round(lap.lap_duration * 1000) : null,
-          sector_1_ms: lap.duration_sector_1 ? Math.round(lap.duration_sector_1 * 1000) : null,
-          sector_2_ms: lap.duration_sector_2 ? Math.round(lap.duration_sector_2 * 1000) : null,
-          sector_3_ms: lap.duration_sector_3 ? Math.round(lap.duration_sector_3 * 1000) : null,
-          is_pit_out_lap: Boolean(lap.is_pit_out_lap),
-        })),
+          position: null,
+          ...timing,
+        },
       });
     }
 

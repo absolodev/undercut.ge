@@ -218,6 +218,9 @@ model f1_laps {
   sector_1_ms      Int?
   sector_2_ms      Int?
   sector_3_ms      Int?
+  i1_speed         Int?
+  i2_speed         Int?
+  st_speed         Int?
   is_pit_out_lap   Boolean   @default(false)
   is_pit_in_lap    Boolean   @default(false)
   is_personal_best Boolean   @default(false)

@@ -3,8 +3,6 @@ import { prisma } from "../src/index";
 const JOLPICA_BASE = "https://api.jolpi.ca/ergast/f1";
 const DELAY_MS = 750;
 
-const STINT_COMPOUNDS = ["MEDIUM", "HARD", "SOFT", "HARD", "SOFT"] as const;
-
 async function delay(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));
 }
@@ -208,7 +206,10 @@ export async function seedLapsForRace(year: number, round: number): Promise<void
   const existing = await prisma.f1_laps.count({
     where: { session_id: ctx.session.id },
   });
-  if (existing > 0) return;
+  const missingPosition = await prisma.f1_laps.count({
+    where: { session_id: ctx.session.id, position: null },
+  });
+  if (existing > 0 && missingPosition === 0) return;
 
   let offset = 0;
   let total = 1;
@@ -235,6 +236,7 @@ export async function seedLapsForRace(year: number, round: number): Promise<void
         });
         if (!driver) continue;
 
+        const lapTime = parseLapTimeToMs(timing.time);
         await prisma.f1_laps.upsert({
           where: {
             session_id_driver_id_lap_number: {
@@ -244,8 +246,8 @@ export async function seedLapsForRace(year: number, round: number): Promise<void
             },
           },
           update: {
-            position: timing.position ? parseInt(timing.position) : null,
-            lap_time_ms: parseLapTimeToMs(timing.time),
+            ...(timing.position ? { position: parseInt(timing.position) } : {}),
+            ...(lapTime != null ? { lap_time_ms: lapTime } : {}),
           },
           create: {
             session_id: ctx.session.id,
@@ -314,7 +316,7 @@ export async function deriveStintsForSession(sessionId: number, totalLaps: numbe
           session_id: sessionId,
           driver_id: driverId,
           stint_number: i + 1,
-          compound: STINT_COMPOUNDS[i] ?? "HARD",
+          compound: "UNKNOWN",
           start_lap: startLap,
           end_lap: endLap,
           total_laps: endLap - startLap + 1,
