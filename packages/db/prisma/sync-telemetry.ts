@@ -54,12 +54,26 @@ type OfDriver = {
   name_acronym: string;
 };
 
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 async function fetchJson<T>(url: string): Promise<T> {
-  const response = await fetch(url, { headers: { "User-Agent": "undercut.ge" } });
-  if (!response.ok) {
-    throw new Error(`${response.status} ${url}`);
+  for (let attempt = 0; attempt < 8; attempt++) {
+    const response = await fetch(url, { headers: { "User-Agent": "undercut.ge" } });
+    if (response.ok) {
+      await sleep(350);
+      return response.json() as Promise<T>;
+    }
+    if (response.status !== 429 && response.status < 500) {
+      throw new Error(`${response.status} ${url}`);
+    }
+    const retryAfter = Number(response.headers.get("retry-after"));
+    const wait = Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter * 1000 : 2000 * (attempt + 1);
+    console.log(`  ${response.status} on ${url}, retrying in ${Math.round(wait / 1000)}s`);
+    await sleep(wait);
   }
-  return response.json() as Promise<T>;
+  throw new Error(`gave up ${url}`);
 }
 
 function lastNameKey(value: string): string {
@@ -183,10 +197,6 @@ async function syncSession(ofSession: OfSession, sessionId: number, onlyIfMissin
   const byNumber = new Map(dbDrivers.filter((d) => d.number != null).map((d) => [d.number as number, d]));
   const byLast = new Map(dbDrivers.map((d) => [lastNameKey(d.last_name || d.full_name), d]));
 
-  if (existing > 0) {
-    await prisma.f1_telemetry.deleteMany({ where: { session_id: sessionId } });
-  }
-
   let inserted = 0;
   for (const ofDriver of ofDrivers) {
     const driver =
@@ -197,15 +207,23 @@ async function syncSession(ofSession: OfSession, sessionId: number, onlyIfMissin
       continue;
     }
 
-    const [laps, samples] = await Promise.all([
-      fetchJson<OfLap[]>(
-        `${OPENF1}/laps?session_key=${ofSession.session_key}&driver_number=${ofDriver.driver_number}`
-      ),
-      fetchJson<OfSample[]>(
-        `${OPENF1}/car_data?session_key=${ofSession.session_key}&driver_number=${ofDriver.driver_number}`
-      ),
-    ]);
+    const already = await prisma.f1_telemetry.count({
+      where: { session_id: sessionId, driver_id: driver.id },
+    });
+    if (already > 100) {
+      console.log(`  #${ofDriver.driver_number} ${ofDriver.name_acronym} already stored (${already})`);
+      inserted += already;
+      continue;
+    }
 
+    const laps = await fetchJson<OfLap[]>(
+      `${OPENF1}/laps?session_key=${ofSession.session_key}&driver_number=${ofDriver.driver_number}`
+    );
+    const samples = await fetchJson<OfSample[]>(
+      `${OPENF1}/car_data?session_key=${ofSession.session_key}&driver_number=${ofDriver.driver_number}`
+    );
+
+    await prisma.f1_telemetry.deleteMany({ where: { session_id: sessionId, driver_id: driver.id } });
     await prisma.f1_laps.deleteMany({ where: { session_id: sessionId, driver_id: driver.id } });
     if (laps.length) {
       await prisma.f1_laps.createMany({
@@ -282,10 +300,6 @@ export async function syncOpenF1Telemetry(options: { onlyIfMissing?: boolean } =
   }
 
   console.log(`Telemetry sync: ${race.race_name} (${race.circuit.circuit_ref})`);
-  if (!onlyIfMissing) {
-    const removed = await prisma.f1_telemetry.deleteMany({});
-    console.log(`Cleared ${removed.count} existing telemetry rows`);
-  }
   const kept: number[] = [];
   for (const ofSession of wanted) {
     const sessionType = SESSION_TYPE[ofSession.session_name];
