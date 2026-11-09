@@ -57,10 +57,10 @@ export function StaticTrackMap({
     <div
       className={
         variant === "card"
-          ? "w-full bg-[#070707] relative overflow-hidden"
+          ? "w-full h-56 bg-[#070707] relative overflow-hidden"
           : "w-full bg-[#070707] rounded-lg border border-white/10 relative overflow-hidden"
       }
-      style={{ aspectRatio: `${vbWidth} / ${vbHeight}` }}
+      style={variant === "card" ? undefined : { aspectRatio: `${vbWidth} / ${vbHeight}` }}
     >
       <svg
         viewBox={vb}

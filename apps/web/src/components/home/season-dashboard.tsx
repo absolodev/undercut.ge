@@ -138,7 +138,7 @@ export async function SeasonDashboard({
 
   return (
     <div className="space-y-8">
-      <header className="flex flex-col lg:flex-row lg:items-end justify-between gap-6">
+      <header className="flex flex-col lg:flex-row lg:items-start justify-between gap-6">
         <div>
           <p className="text-[#E10600] font-mono text-xs font-bold mb-1">{t("seasonLabel", { year: seasonYear })}</p>
           <h1 className="font-display text-2xl sm:text-3xl md:text-4xl font-bold">{t("title")}</h1>
