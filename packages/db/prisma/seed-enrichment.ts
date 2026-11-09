@@ -130,7 +130,7 @@ export async function seedSampleTelemetry(): Promise<void> {
               speed,
               gear: Math.max(1, Math.min(8, Math.floor(speed / 45))),
               throttle,
-              brake,
+              brake: brake ? 100 : 0,
               drs: speed > 260 ? 2 : speed > 220 ? 1 : 0,
             },
           });

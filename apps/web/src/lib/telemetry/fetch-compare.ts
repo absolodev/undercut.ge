@@ -4,14 +4,25 @@ export interface TelemetryComparePoint {
   speedB: number;
   throttleA: number;
   throttleB: number;
-  brakeA: boolean;
-  brakeB: boolean;
+  brakeA: number;
+  brakeB: number;
   gearA: number;
   gearB: number;
   timeA: number;
   timeB: number;
-  x: number;
-  y: number;
+  delta: number;
+}
+
+export interface SectorTimes {
+  lap: number | null;
+  s1: number | null;
+  s2: number | null;
+  s3: number | null;
+}
+
+export interface TelemetryCompareResult {
+  merged: TelemetryComparePoint[];
+  sectors: { a: SectorTimes | null; b: SectorTimes | null };
 }
 
 export async function fetchTelemetryCompare(params: {
@@ -20,7 +31,7 @@ export async function fetchTelemetryCompare(params: {
   lapA: number;
   driverBId: number;
   lapB: number;
-}): Promise<TelemetryComparePoint[]> {
+}): Promise<TelemetryCompareResult> {
   const qs = new URLSearchParams({
     session: String(params.sessionId),
     driverA: String(params.driverAId),
@@ -31,6 +42,9 @@ export async function fetchTelemetryCompare(params: {
 
   const res = await fetch(`/api/telemetry/compare?${qs.toString()}`);
   if (!res.ok) throw new Error("Failed to load telemetry");
-  const json = (await res.json()) as { merged: TelemetryComparePoint[] };
-  return json.merged;
+  const json = (await res.json()) as TelemetryCompareResult;
+  return {
+    merged: json.merged ?? [],
+    sectors: json.sectors ?? { a: null, b: null },
+  };
 }

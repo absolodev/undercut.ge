@@ -64,10 +64,10 @@
     "accept": "I understand"
   },
   "Telemetry": {
-    "title": "Telemetry Comparison Engine",
-    "subtitle": "Overlay speed, throttle, and brake traces corner-by-corner.",
-    "betaLabel": "Beta",
-    "betaBody": "Experimental feature. Telemetry comparison uses sampled session data and may be incomplete or inaccurate. Do not rely on it for timing decisions.",
+    "title": "Telemetry",
+    "subtitle": "Compare real car data from the latest completed qualifying and race. Every driver with a trace is listed, and the fastest lap is selected.",
+    "betaLabel": "Live feed",
+    "betaBody": "Traces come from the OpenF1 timing feed: speed, throttle, brake, and gear, plus official sector times. A new grand prix is added after the race.",
     "distance": "DISTANCE",
     "time": "TIME",
     "selectPrompt": "Select a session, two drivers, and lap numbers to compare."

@@ -64,10 +64,10 @@
     "accept": "Entiendo"
   },
   "Telemetry": {
-    "title": "Motor de Comparación de Telemetría",
-    "subtitle": "Superpone trazas de velocidad, acelerador y freno curva a curva.",
-    "betaLabel": "Beta",
-    "betaBody": "Función experimental. La comparación de telemetría usa datos de sesión muestreados y puede estar incompleta o ser inexacta. No la uses para decisiones de cronometraje.",
+    "title": "Telemetría",
+    "subtitle": "Compara datos reales del coche de la última clasificación y carrera completadas. Aparece cada piloto con traza y se selecciona su vuelta rápida.",
+    "betaLabel": "Datos",
+    "betaBody": "Las trazas vienen del feed de OpenF1: velocidad, acelerador, freno y marcha, más los sectores oficiales. Un gran premio nuevo se añade después de la carrera.",
     "distance": "DISTANCIA",
     "time": "TIEMPO",
     "selectPrompt": "Selecciona una sesión, dos pilotos y números de vuelta para comparar."

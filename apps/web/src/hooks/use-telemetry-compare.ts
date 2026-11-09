@@ -1,7 +1,9 @@
-"use client";
-
 import { useEffect, useState } from "react";
-import { fetchTelemetryCompare, type TelemetryComparePoint } from "@/lib/telemetry/fetch-compare";
+import {
+  fetchTelemetryCompare,
+  type SectorTimes,
+  type TelemetryComparePoint,
+} from "@/lib/telemetry/fetch-compare";
 
 export function useTelemetryCompare(
   sessionId: number | null,
@@ -9,6 +11,10 @@ export function useTelemetryCompare(
   driverB: { id: number; lap: number } | null
 ) {
   const [data, setData] = useState<TelemetryComparePoint[]>([]);
+  const [sectors, setSectors] = useState<{ a: SectorTimes | null; b: SectorTimes | null }>({
+    a: null,
+    b: null,
+  });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -29,8 +35,11 @@ export function useTelemetryCompare(
       driverBId: driverB.id,
       lapB: driverB.lap,
     })
-      .then((merged) => {
-        if (!cancelled) setData(merged);
+      .then((result) => {
+        if (!cancelled) {
+          setData(result.merged);
+          setSectors(result.sectors);
+        }
       })
       .catch((err: Error) => {
         if (!cancelled) {
@@ -47,5 +56,5 @@ export function useTelemetryCompare(
     };
   }, [sessionId, driverA, driverB]);
 
-  return { data, loading, error };
+  return { data, sectors, loading, error };
 }

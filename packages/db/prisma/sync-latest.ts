@@ -13,6 +13,7 @@ import { seedSessionDetailsForYear } from "./seed-session-details";
 import { seedStandingsForYear } from "./seed-standings";
 import { seedConstructorLogos, syncDriverActiveFlags } from "./seed-enrichment";
 import { refreshSeasonNews } from "../src/news-cache";
+import { syncOpenF1Telemetry } from "./sync-telemetry";
 
 const year = parseInt(process.argv[2] ?? process.env.CURRENT_SEASON ?? String(new Date().getFullYear()), 10);
 
@@ -45,6 +46,13 @@ async function syncSeason(targetYear: number): Promise<void> {
   console.log("6/7 Refreshing active driver & team flags …");
   await seedConstructorLogos();
   await syncDriverActiveFlags();
+
+  console.log("7/7 OpenF1 telemetry for the latest completed race …");
+  try {
+    await syncOpenF1Telemetry({ onlyIfMissing: true });
+  } catch (error) {
+    console.error("Telemetry sync failed:", error);
+  }
 
   const completed = await prisma.f1_races.count({
     where: {

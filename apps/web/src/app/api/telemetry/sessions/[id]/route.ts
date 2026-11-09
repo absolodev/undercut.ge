@@ -33,9 +33,9 @@ export async function GET(
       full_name: string;
       broadcast_name: string;
       number: number | null;
-      constructor_ref: string;
-      constructor_name: string;
-      laps: number[];
+      constructor_ref: string | null;
+      constructor_name: string | null;
+      laps: Array<{ lap: number; ms: number | null; pit: boolean }> | null;
     }>
   >`
     SELECT
@@ -46,14 +46,37 @@ export async function GET(
       d.number,
       c.constructor_ref,
       c.name as constructor_name,
-      ARRAY_AGG(DISTINCT t.lap_number ORDER BY t.lap_number) FILTER (WHERE t.lap_number IS NOT NULL) as laps
-    FROM f1_telemetry t
-    JOIN f1_drivers d ON t.driver_id = d.id
-    LEFT JOIN f1_results res ON res.session_id = t.session_id AND res.driver_id = d.id
-    LEFT JOIN f1_constructors c ON res.constructor_id = c.id
-    WHERE t.session_id = ${sessionId}
+      COALESCE(
+        json_agg(
+          json_build_object(
+            'lap', l.lap_number,
+            'ms', l.lap_time_ms,
+            'pit', l.is_pit_out_lap
+          )
+          ORDER BY l.lap_number
+        ) FILTER (WHERE l.lap_number IS NOT NULL),
+        '[]'::json
+      ) as laps
+    FROM (
+      SELECT DISTINCT driver_id
+      FROM f1_telemetry
+      WHERE session_id = ${sessionId}
+    ) present
+    JOIN f1_drivers d ON d.id = present.driver_id
+    LEFT JOIN f1_laps l ON l.session_id = ${sessionId} AND l.driver_id = d.id
+    LEFT JOIN LATERAL (
+      SELECT res.constructor_id
+      FROM f1_results res
+      JOIN f1_sessions s2 ON s2.id = res.session_id
+      WHERE res.driver_id = d.id
+        AND s2.race_id = (SELECT race_id FROM f1_sessions WHERE id = ${sessionId})
+      ORDER BY CASE WHEN res.session_id = ${sessionId} THEN 0 ELSE 1 END
+      LIMIT 1
+    ) res ON true
+    LEFT JOIN f1_constructors c ON c.id = res.constructor_id
     GROUP BY d.id, d.driver_ref, d.full_name, d.broadcast_name, d.number, c.constructor_ref, c.name
-    ORDER BY d.number ASC NULLS LAST, d.full_name ASC
+    ORDER BY MIN(l.lap_time_ms) FILTER (WHERE l.lap_time_ms IS NOT NULL AND NOT l.is_pit_out_lap) ASC NULLS LAST,
+      d.number ASC NULLS LAST
   `;
 
   return NextResponse.json({
@@ -67,15 +90,22 @@ export async function GET(
       circuitRef: session.race.circuit.circuit_ref,
       circuitName: session.race.circuit.name,
     },
-    drivers: drivers.map((d) => ({
-      id: d.driver_id,
-      driverRef: d.driver_ref,
-      fullName: d.full_name,
-      broadcastName: d.broadcast_name,
-      number: d.number,
-      constructorRef: d.constructor_ref,
-      constructorName: d.constructor_name,
-      laps: d.laps ?? [],
-    })),
+    drivers: drivers.map((driver) => {
+      const laps = (typeof driver.laps === "string" ? JSON.parse(driver.laps) : driver.laps) ?? [];
+      const timed = laps.filter((lap) => lap.ms && !lap.pit);
+      const best = timed.reduce<number | null>((min, lap) => (min == null || (lap.ms ?? Infinity) < min ? lap.ms : min), null);
+      return {
+        id: driver.driver_id,
+        driverRef: driver.driver_ref,
+        fullName: driver.full_name,
+        broadcastName: driver.broadcast_name,
+        number: driver.number,
+        constructorRef: driver.constructor_ref,
+        constructorName: driver.constructor_name,
+        bestLapMs: best,
+        laps: laps.map((lap) => lap.lap),
+        lapTimes: laps,
+      };
+    }),
   });
 }

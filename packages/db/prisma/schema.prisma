@@ -378,12 +378,13 @@ model f1_telemetry {
   rpm              Int?
   gear             Int?
   throttle         Int?
-  brake            Boolean?
+  brake            Int?      // brake pressure 0–100
   drs              Int?      // 0=off, 1=available, 2=active
 
   session          f1_sessions @relation(fields: [session_id], references: [id])
   driver           f1_drivers  @relation(fields: [driver_id], references: [id])
 
   @@index([session_id, driver_id, timestamp])
+  @@index([session_id, driver_id, lap_number])
   @@index([timestamp])
 }
