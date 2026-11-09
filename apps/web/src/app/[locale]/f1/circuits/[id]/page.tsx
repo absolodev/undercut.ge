@@ -4,7 +4,6 @@ import { Link } from "@/i18n/navigation";
 import { CircuitHeader } from "@/components/circuits/circuit-header";
 import { StaticTrackMap } from "@/components/circuits/static-track-map";
 import { ElevationProfile } from "@/components/circuits/elevation-profile";
-import { DrsZoneVisualization } from "@/components/circuits/drs-zones";
 import { RaceHistoryTable } from "@/components/circuits/race-history-table";
 import { CircuitRecords } from "@/components/circuits/circuit-records";
 import { LapTimeEvolution } from "@/components/circuits/lap-time-evolution";
@@ -49,7 +48,11 @@ export default async function CircuitProfilePage({
           corners={mapData ? mapData.corners : circuit.corner_data}
           drsZones={mapData ? mapData.drsZones : circuit.drs_zones}
           viewBox={mapData?.viewBox ?? null}
+          startFinishLine={mapData?.startFinishLine ?? null}
         />
+        <p className="mt-3 text-[11px] font-mono text-white/40">
+          Lime bands are 2026 straight-mode zones on the longest straights. Red ticks are overtake detection. The white bar is the start line.
+        </p>
       </div>
 
       {/* Key stats bar */}
@@ -57,20 +60,9 @@ export default async function CircuitProfilePage({
         <StatCard label="Length" value={circuit.length_meters ? `${(circuit.length_meters / 1000).toFixed(3)} km` : "N/A"} />
         <StatCard label="Turns" value={circuit.turns || "N/A"} />
         <StatCard label="Pit Loss" value={circuit.pit_loss_time ? `~${circuit.pit_loss_time}s` : "N/A"} />
-        <StatCard label="DRS Zones" value={(circuit.drs_zones as any[])?.length || 0} />
+        <StatCard label="Straight-mode zones" value={mapData?.drsZones.length ?? 0} />
         <StatCard label="First GP" value={raceHistory[raceHistory.length - 1]?.season_year || "N/A"} />
       </div>
-
-      {/* DRS Zone Visualization */}
-      <DrsZoneVisualization
-        drsZones={mapData ? mapData.drsZones : circuit.drs_zones}
-        svgPath={mapData ? mapData.svgPath : circuit.map_svg_path}
-        viewBox={
-          mapData?.viewBox
-            ? `${mapData.viewBox.x} ${mapData.viewBox.y} ${mapData.viewBox.width} ${mapData.viewBox.height}`
-            : null
-        }
-      />
 
       {/* Elevation Profile */}
       {circuit.elevation_data && (

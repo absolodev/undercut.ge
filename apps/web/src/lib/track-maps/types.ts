@@ -18,8 +18,9 @@ export interface CircuitMapData {
   };
 
   drsZones: Array<{
-    detectionPathSegment: string;   // SVG path segment for detection line
-    activationPathSegment: string;  // SVG path segment for DRS zone
+    detectionPathSegment: string;   // perpendicular tick at the overtake detection point
+    activationPathSegment: string;  // straight-mode / overtake zone along the racing line
+    label?: string;
   }>;
 
   sectorBoundaries: Array<{

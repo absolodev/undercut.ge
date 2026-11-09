@@ -2,6 +2,8 @@ import { Link } from "@/i18n/navigation";
 import { getTranslations } from "next-intl/server";
 import { TeamLogo } from "@/components/ui/team-logo";
 import { DriverAvatar } from "@/components/ui/driver-avatar";
+import { StaticTrackMap } from "@/components/circuits/static-track-map";
+import { getCircuitData } from "@/lib/track-maps";
 
 interface StandingRow {
   position: number;
@@ -23,7 +25,7 @@ interface SeasonDashboardProps {
     race_name: string;
     round: number;
     race_date: Date;
-    circuit: { name: string; country: string | null; location?: string | null };
+    circuit: { name: string; country: string | null; location?: string | null; circuit_ref?: string };
   } | null;
   countdownSeconds: number | null;
   driverStandings: StandingRow[];
@@ -143,20 +145,13 @@ export async function SeasonDashboard({
           <p className="text-white/50 font-mono text-sm mt-1">{t("subtitle")}</p>
         </div>
         {nextRace && (
-          <article className="bg-[#111] border border-white/10 rounded-lg px-5 py-4 min-w-[240px]">
-            <p className="text-[10px] font-mono text-white/40 uppercase">{t("nextRace")}</p>
-            <p className="font-display text-lg font-bold mt-1">{nextRace.race_name}</p>
-            <p className="text-xs font-mono text-white/50 mt-1">
-              R{nextRace.round} · {nextRace.circuit.name}
-            </p>
-            <p className="text-xs font-mono text-[#E10600] mt-2">{formatCountdown(countdownSeconds)}</p>
-            <Link
-              href={`/f1/seasons/${seasonYear}/${nextRace.round}`}
-              className="inline-block mt-3 text-xs font-mono text-[#E10600] hover:underline"
-            >
-              {t("raceDetails")}
-            </Link>
-          </article>
+          <NextRaceCard
+            seasonYear={seasonYear}
+            race={nextRace}
+            countdown={formatCountdown(countdownSeconds)}
+            detailsLabel={t("raceDetails")}
+            nextLabel={t("nextRace")}
+          />
         )}
       </header>
 
@@ -246,5 +241,52 @@ export async function SeasonDashboard({
         )}
       </article>
     </div>
+  );
+}
+
+function NextRaceCard({
+  seasonYear,
+  race,
+  countdown,
+  detailsLabel,
+  nextLabel,
+}: {
+  seasonYear: number;
+  race: NonNullable<SeasonDashboardProps["nextRace"]>;
+  countdown: string;
+  detailsLabel: string;
+  nextLabel: string;
+}) {
+  const map = race.circuit.circuit_ref ? getCircuitData(race.circuit.circuit_ref) : undefined;
+
+  return (
+    <article className="bg-[#111] border border-white/10 rounded-lg overflow-hidden min-w-[280px] max-w-md">
+      {map && (
+        <Link href={`/f1/circuits/${race.circuit.circuit_ref}`} className="block border-b border-white/10">
+          <StaticTrackMap
+            svgPath={map.svgPath}
+            corners={map.corners}
+            drsZones={map.drsZones}
+            viewBox={map.viewBox}
+            startFinishLine={map.startFinishLine}
+            variant="card"
+          />
+        </Link>
+      )}
+      <div className="px-5 py-4">
+        <p className="text-[10px] font-mono text-white/40 uppercase">{nextLabel}</p>
+        <p className="font-display text-lg font-bold mt-1">{race.race_name}</p>
+        <p className="text-xs font-mono text-white/50 mt-1">
+          R{race.round} · {race.circuit.name}
+        </p>
+        <p className="text-xs font-mono text-[#E10600] mt-2">{countdown}</p>
+        <Link
+          href={`/f1/seasons/${seasonYear}/${race.round}`}
+          className="inline-block mt-3 text-xs font-mono text-[#E10600] hover:underline"
+        >
+          {detailsLabel}
+        </Link>
+      </div>
+    </article>
   );
 }

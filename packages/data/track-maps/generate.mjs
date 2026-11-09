@@ -117,7 +117,7 @@ function geojsonToTrackMap(feature, circuitRef) {
   };
 }
 
-function main() {
+async function main() {
   const geojsonPath = join(__dirname, "source", "f1-circuits.geojson");
   if (!existsSync(geojsonPath)) {
     console.error("Missing source/f1-circuits.geojson — download from bacinger/f1-circuits");
@@ -152,6 +152,8 @@ function main() {
     JSON.stringify(BACINGER_TO_CIRCUIT_REF, null, 2)
   );
   console.log(`\nGenerated ${count} circuit maps.`);
+  const { annotateAll } = await import("./annotate.mjs");
+  annotateAll();
 }
 
 main();

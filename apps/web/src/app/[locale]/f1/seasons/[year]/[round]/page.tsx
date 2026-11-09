@@ -6,6 +6,8 @@ import { LapChart } from "@/components/historical/lap-chart";
 import { TireStrategyDiagram } from "@/components/historical/tire-strategy-diagram";
 import { GridVsFinish } from "@/components/historical/grid-vs-finish";
 import { PitStopSummary } from "@/components/historical/pit-stop-summary";
+import { StaticTrackMap } from "@/components/circuits/static-track-map";
+import { getCircuitData } from "@/lib/track-maps";
 import { setLocaleFromParams } from "@/i18n/set-request-locale";
 
 export async function generateMetadata({ params }: { params: Promise<{ locale: string; year: string; round: string }> }) {
@@ -26,6 +28,7 @@ export default async function RaceArchivePage({
   }
 
   const raceSession = race.sessions.find((s: any) => s.session_type === "R");
+  const map = race.circuit?.circuit_ref ? getCircuitData(race.circuit.circuit_ref) : undefined;
 
   return (
     <div className="p-4 sm:p-6 md:p-8 max-w-7xl mx-auto">
@@ -42,6 +45,18 @@ export default async function RaceArchivePage({
           ROUND {round} • {race.circuit.name} • {new Date(race.race_date).toLocaleDateString()}
         </div>
       </div>
+
+      {map && (
+        <div className="mb-8 max-w-3xl">
+          <StaticTrackMap
+            svgPath={map.svgPath}
+            corners={map.corners}
+            drsZones={map.drsZones}
+            viewBox={map.viewBox}
+            startFinishLine={map.startFinishLine}
+          />
+        </div>
+      )}
 
       <Tabs defaultValue="classification" className="space-y-6">
         <TabsList className="bg-[#111] border-b border-white/10 rounded-none w-full justify-start h-10 p-0 overflow-x-auto flex-nowrap">

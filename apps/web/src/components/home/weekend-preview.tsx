@@ -4,6 +4,8 @@ import type { WeatherData } from "@pitwall/types";
 import type { LiveSessionStatus } from "@/lib/live-status-types";
 import { LiveStandingsPreview } from "./live-standings-preview";
 import { WeatherPreviewCard } from "./weather-preview-card";
+import { StaticTrackMap } from "@/components/circuits/static-track-map";
+import { getCircuitData } from "@/lib/track-maps";
 
 interface WeekendPreviewProps {
   status: LiveSessionStatus;
@@ -175,7 +177,8 @@ export function WeekendPreview({ status, race, liveStandings, liveLap, weather }
 
           <div className="bg-[#111] border border-white/10 rounded-lg p-5">
             <h2 className="font-mono text-xs text-white/40 uppercase tracking-wider mb-3">Circuit</h2>
-            <p className="font-display font-bold text-lg">{race.circuit.name}</p>
+            <CircuitMap circuitRef={race.circuit.circuit_ref} />
+            <p className="font-display font-bold text-lg mt-4">{race.circuit.name}</p>
             {race.circuit.location && (
               <p className="text-sm text-white/50 mt-1">{race.circuit.location}</p>
             )}
@@ -197,5 +200,22 @@ export function WeekendPreview({ status, race, liveStandings, liveLap, weather }
         </div>
       </div>
     </div>
+  );
+}
+
+function CircuitMap({ circuitRef }: { circuitRef: string }) {
+  const map = getCircuitData(circuitRef);
+  if (!map) return null;
+  return (
+    <Link href={`/f1/circuits/${circuitRef}`} className="block">
+      <StaticTrackMap
+        svgPath={map.svgPath}
+        corners={map.corners}
+        drsZones={map.drsZones}
+        viewBox={map.viewBox}
+        startFinishLine={map.startFinishLine}
+        variant="card"
+      />
+    </Link>
   );
 }

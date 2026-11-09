@@ -22,7 +22,7 @@ export default async function CircuitsPage({
     <div className="p-8 max-w-7xl mx-auto">
       <PageHeader
         title="Circuits"
-        description="Track maps, DRS zones, and historical results for venues on the F1 calendar."
+        description="Track maps, straight-mode zones, and historical results for venues on the F1 calendar."
         breadcrumbs={[{ label: "F1", href: "/f1/seasons" }, { label: "Circuits" }]}
       />
 

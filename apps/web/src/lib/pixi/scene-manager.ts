@@ -86,34 +86,59 @@ export class TrackMapScene {
     this.initialized = true;
   }
 
+  private trackStroke(): number {
+    const minDim = Math.min(this.app.renderer.width, this.app.renderer.height);
+    return Math.max(8, minDim * 0.028);
+  }
+
   private drawTrackOutline(circuit: CircuitMapData): void {
-    const g = new Graphics();
     const w = this.app.renderer.width;
     const h = this.app.renderer.height;
+    if (!circuit.svgPath) return;
 
-    if (circuit.svgPath) {
-      drawSvgPathOnGraphics(g, circuit.svgPath, circuit.viewBox, w, h, {
-        color: 0xcccccc,
-        width: 3,
-      });
-    }
-
-    this.trackLayer.addChild(g);
+    const track = this.trackStroke();
+    const casing = new Graphics();
+    const edge = new Graphics();
+    const asphalt = new Graphics();
+    drawSvgPathOnGraphics(casing, circuit.svgPath, circuit.viewBox, w, h, {
+      color: 0x050505,
+      width: track * 1.45,
+    });
+    drawSvgPathOnGraphics(edge, circuit.svgPath, circuit.viewBox, w, h, {
+      color: 0x8a8a8a,
+      width: track,
+    });
+    drawSvgPathOnGraphics(asphalt, circuit.svgPath, circuit.viewBox, w, h, {
+      color: 0x1c1c1c,
+      width: track * 0.7,
+    });
+    this.trackLayer.addChild(casing, edge, asphalt);
   }
 
   private drawDrsZones(circuit: CircuitMapData): void {
     const w = this.app.renderer.width;
     const h = this.app.renderer.height;
+    const track = this.trackStroke();
 
     for (const zone of circuit.drsZones) {
-      if (!zone.activationPathSegment) continue;
-      const g = new Graphics();
-      drawSvgPathOnGraphics(g, zone.activationPathSegment, circuit.viewBox, w, h, {
-        color: 0x00ff00,
-        width: 5,
-        alpha: 0.55,
-      });
-      this.drsLayer.addChild(g);
+      if (zone.activationPathSegment) {
+        const activation = new Graphics();
+        drawSvgPathOnGraphics(activation, zone.activationPathSegment, circuit.viewBox, w, h, {
+          color: 0xd6ff4a,
+          width: track * 0.34,
+          alpha: 1,
+        });
+        this.drsLayer.addChild(activation);
+      }
+      if (zone.detectionPathSegment) {
+        const detection = new Graphics();
+        drawSvgPathOnGraphics(detection, zone.detectionPathSegment, circuit.viewBox, w, h, {
+          color: 0xe10600,
+          width: Math.max(2, track * 0.12),
+          alpha: 1,
+        });
+        this.drsLayer.addChild(detection);
+      }
     }
   }
 
@@ -129,11 +154,19 @@ export class TrackMapScene {
   }
 
   private drawStartFinish(circuit: CircuitMapData): void {
-    const g = new Graphics();
     const sf = circuit.startFinishLine;
-    g.moveTo(sf.x1, sf.y1);
-    g.lineTo(sf.x2, sf.y2);
-    g.stroke({ width: 3, color: 0xffffff });
+    if (sf.x1 === 0 && sf.y1 === 0 && sf.x2 === 0 && sf.y2 === 0) return;
+    const toCanvas = createViewBoxTransform(
+      circuit.viewBox,
+      this.app.renderer.width,
+      this.app.renderer.height
+    );
+    const a = toCanvas(sf.x1, sf.y1);
+    const b = toCanvas(sf.x2, sf.y2);
+    const g = new Graphics();
+    g.moveTo(a.x, a.y);
+    g.lineTo(b.x, b.y);
+    g.stroke({ width: Math.max(2, this.trackStroke() * 0.14), color: 0xffffff });
     this.trackLayer.addChild(g);
   }
 
@@ -148,8 +181,14 @@ export class TrackMapScene {
       const p = toCanvas(corner.position.x, corner.position.y);
       const text = new Text({
         text: `${corner.number}`,
-        style: new TextStyle({ fill: "#666666", fontSize: 9, fontFamily: "monospace" }),
+        style: new TextStyle({
+          fill: "#ffffff",
+          fontSize: Math.max(10, Math.min(this.app.renderer.width, this.app.renderer.height) * 0.018),
+          fontFamily: "monospace",
+          fontWeight: "700",
+        }),
       });
+      text.anchor.set(0.5, 0.5);
       text.position.set(p.x, p.y);
       this.trackLayer.addChild(text);
     }

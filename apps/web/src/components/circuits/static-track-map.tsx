@@ -1,15 +1,32 @@
 "use client";
 
+type Point = { x: number; y: number };
+
+type Zone = {
+  activationPathSegment?: string;
+  detectionPathSegment?: string;
+  label?: string;
+};
+
+type Corner = {
+  number: number | string;
+  position?: Point;
+};
+
 export function StaticTrackMap({
   svgPath,
   corners,
   drsZones,
   viewBox,
+  startFinishLine,
+  variant = "full",
 }: {
   svgPath: string | null;
   corners: unknown;
   drsZones: unknown;
   viewBox?: { x: number; y: number; width: number; height: number } | string | null;
+  startFinishLine?: { x1: number; y1: number; x2: number; y2: number } | null;
+  variant?: "full" | "card";
 }) {
   if (!svgPath) {
     return (
@@ -27,10 +44,22 @@ export function StaticTrackMap({
         : "0 0 1000 600";
 
   const [, , vbWidth = 1000, vbHeight = 600] = vb.split(/\s+/).map(Number);
+  const minDim = Math.min(vbWidth, vbHeight);
+  const track = Math.max(14, minDim * 0.034);
+  const label = Math.max(11, minDim * 0.028);
+  const zones = (Array.isArray(drsZones) ? drsZones : []) as Zone[];
+  const cornerList = (Array.isArray(corners) ? corners : []) as Corner[];
+  const hasFinish =
+    startFinishLine &&
+    (startFinishLine.x1 !== 0 || startFinishLine.y1 !== 0 || startFinishLine.x2 !== 0 || startFinishLine.y2 !== 0);
 
   return (
     <div
-      className="w-full min-h-[420px] md:min-h-[520px] lg:min-h-[600px] bg-[#0a0a0a] rounded border border-white/5 relative overflow-hidden"
+      className={
+        variant === "card"
+          ? "w-full bg-[#070707] relative overflow-hidden"
+          : "w-full bg-[#070707] rounded-lg border border-white/10 relative overflow-hidden"
+      }
       style={{ aspectRatio: `${vbWidth} / ${vbHeight}` }}
     >
       <svg
@@ -39,61 +68,90 @@ export function StaticTrackMap({
         width="100%"
         height="100%"
         className="block w-full h-full"
+        role="img"
+        aria-label="Circuit map with straight-mode zones"
       >
-        <path
-          d={svgPath}
-          fill="none"
-          stroke="#cccccc"
-          strokeWidth="3"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
+        <path d={svgPath} fill="none" stroke="#050505" strokeWidth={track * 1.45} strokeLinecap="round" strokeLinejoin="round" />
+        <path d={svgPath} fill="none" stroke="#8a8a8a" strokeWidth={track * 1.02} strokeLinecap="round" strokeLinejoin="round" />
+        <path d={svgPath} fill="none" stroke="#1c1c1c" strokeWidth={track * 0.72} strokeLinecap="round" strokeLinejoin="round" />
 
-        {(drsZones as Array<{ activationPathSegment?: string }>)?.map(
+        {zones.map(
           (zone, i) =>
             zone.activationPathSegment && (
               <path
-                key={i}
+                key={`zone-${i}`}
                 d={zone.activationPathSegment}
                 fill="none"
-                stroke="#00FF00"
-                strokeWidth="4"
-                strokeDasharray="8 4"
-                opacity="0.7"
+                stroke="#d6ff4a"
+                strokeWidth={track * 0.34}
+                strokeLinecap="butt"
+                strokeLinejoin="round"
               />
             )
         )}
 
-        {(corners as Array<{ number: number | string; position?: { x: number; y: number } }>)?.map(
-          (c) => (
-            <g key={c.number} transform={`translate(${c.position?.x ?? 0}, ${c.position?.y ?? 0})`}>
-              <circle cx="0" cy="0" r="8" fill="#111" stroke="#E10600" strokeWidth="1.5" />
+        {zones.map(
+          (zone, i) =>
+            zone.detectionPathSegment && (
+              <path
+                key={`det-${i}`}
+                d={zone.detectionPathSegment}
+                fill="none"
+                stroke="#E10600"
+                strokeWidth={Math.max(2.5, track * 0.12)}
+                strokeLinecap="round"
+              />
+            )
+        )}
+
+        {hasFinish && startFinishLine && (
+          <line
+            x1={startFinishLine.x1}
+            y1={startFinishLine.y1}
+            x2={startFinishLine.x2}
+            y2={startFinishLine.y2}
+            stroke="#ffffff"
+            strokeWidth={Math.max(2.5, track * 0.14)}
+            strokeLinecap="butt"
+          />
+        )}
+
+        {cornerList.map((corner) =>
+          corner.position ? (
+            <g key={corner.number} transform={`translate(${corner.position.x}, ${corner.position.y})`}>
+              <circle r={label * 0.72} fill="#111111" stroke="#ffffff" strokeWidth={Math.max(1, label * 0.08)} />
               <text
-                x="0"
-                y="3"
+                y={label * 0.32}
                 textAnchor="middle"
-                fill="#fff"
-                fontSize="7"
-                fontFamily="monospace"
-                fontWeight="bold"
+                fill="#ffffff"
+                fontSize={label * 0.72}
+                fontFamily="ui-monospace, monospace"
+                fontWeight="700"
               >
-                {c.number}
+                {corner.number}
               </text>
             </g>
-          )
+          ) : null
         )}
       </svg>
 
-      <div className="absolute bottom-4 right-4 flex gap-4 text-[10px] font-mono text-white/50 bg-black/80 px-3 py-2 rounded">
-        <div className="flex items-center gap-2">
-          <div className="w-4 h-1 bg-[#ccc] rounded-full" />
-          <span>TRACK</span>
+      {variant === "full" && (
+        <div className="absolute bottom-3 left-3 flex flex-wrap gap-3 text-[10px] font-mono text-white/70 bg-black/75 px-3 py-2 rounded">
+          <Legend swatch="bg-[#8a8a8a]" label="Track" />
+          <Legend swatch="bg-[#d6ff4a]" label="Straight mode" />
+          <Legend swatch="bg-[#E10600]" label="Overtake detection" />
+          <Legend swatch="bg-white" label="Start" />
         </div>
-        <div className="flex items-center gap-2">
-          <div className="w-4 h-1 bg-[#00FF00] rounded-full" />
-          <span>DRS ZONE</span>
-        </div>
-      </div>
+      )}
+    </div>
+  );
+}
+
+function Legend({ swatch, label }: { swatch: string; label: string }) {
+  return (
+    <div className="flex items-center gap-2">
+      <div className={`w-4 h-1 rounded-full ${swatch}`} />
+      <span>{label}</span>
     </div>
   );
 }
