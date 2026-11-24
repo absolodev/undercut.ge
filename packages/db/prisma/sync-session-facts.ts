@@ -28,6 +28,7 @@ import {
   mapOpenF1Stint,
   mapRaceControl,
   mapWeather,
+  pickOpenF1Session,
   type OpenF1SessionResultInput,
 } from "../src/session-facts";
 
@@ -305,14 +306,21 @@ async function matchSessionKeys(
   for (const race of races) {
     for (const session of race.sessions) {
       if (session.session_key != null) continue;
-      const match = ofSessions.find((ofSession) => {
-        if (NAME_TO_TYPE[ofSession.session_name] !== session.session_type) return false;
-        const delta = Math.abs(new Date(ofSession.date_start).getTime() - session.date_start.getTime());
-        return delta <= SIX_HOURS;
-      });
+      const match = pickOpenF1Session(
+        ofSessions,
+        session.session_type,
+        session.date_start,
+        NAME_TO_TYPE,
+      );
       if (!match) {
         console.log(`  no OpenF1 match for ${year} R${race.round} ${session.session_type}`);
         continue;
+      }
+      const delta = Math.abs(new Date(match.date_start).getTime() - session.date_start.getTime());
+      if (delta > SIX_HOURS) {
+        console.log(
+          `  matched ${year} R${race.round} ${session.session_type} across Jolpica local-date skew (${match.session_key})`,
+        );
       }
       try {
         await prisma.f1_sessions.update({

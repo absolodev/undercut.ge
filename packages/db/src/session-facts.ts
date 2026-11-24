@@ -274,3 +274,46 @@ export function mapOpenF1SessionResult(row: OpenF1SessionResultInput) {
     status: classification === "Classified" ? "Finished" : classification,
   };
 }
+
+const SIX_HOURS_MS = 6 * 60 * 60 * 1000;
+const LOCAL_DATE_SKEW_MS = 30 * 60 * 60 * 1000;
+
+export type OpenF1SessionCandidate = {
+  session_key: number;
+  session_name: string;
+  date_start: string;
+};
+
+/**
+ * Jolpica stores a local calendar date next to a UTC clock. For Las Vegas that
+ * instant is 24 hours earlier than OpenF1, so a 6-hour window never matches.
+ * Prefer the closest session inside 6 hours. Otherwise accept one candidate
+ * inside 30 hours that shares the UTC clock, and only when it is unique.
+ */
+export function pickOpenF1Session(
+  candidates: OpenF1SessionCandidate[],
+  sessionType: string,
+  dateStart: Date,
+  nameToType: Record<string, string>,
+): OpenF1SessionCandidate | null {
+  const scored = candidates
+    .filter((row) => nameToType[row.session_name] === sessionType)
+    .map((row) => ({
+      row,
+      delta: Math.abs(new Date(row.date_start).getTime() - dateStart.getTime()),
+    }))
+    .filter((item) => Number.isFinite(item.delta));
+
+  const close = scored
+    .filter((item) => item.delta <= SIX_HOURS_MS)
+    .sort((a, b) => a.delta - b.delta)[0];
+  if (close) return close.row;
+
+  const skewed = scored.filter((item) => {
+    if (item.delta <= SIX_HOURS_MS || item.delta > LOCAL_DATE_SKEW_MS) return false;
+    const ofDate = new Date(item.row.date_start);
+    return ofDate.getUTCHours() === dateStart.getUTCHours()
+      && ofDate.getUTCMinutes() === dateStart.getUTCMinutes();
+  });
+  return skewed.length === 1 ? skewed[0].row : null;
+}

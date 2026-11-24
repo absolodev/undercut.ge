@@ -12,11 +12,13 @@ async function fetchJolpicaJson(url: string, maxRetries = 12): Promise<any> {
   let lastError: unknown;
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     try {
-      const res = await fetch(url);
+      const res = await fetch(url, {
+        headers: { "User-Agent": "undercut.ge", Accept: "application/json" },
+      });
       const text = await res.text();
       const trimmed = text.trimStart();
-      if (!res.ok || trimmed.startsWith("<")) {
-        throw new Error(`HTTP ${res.status}: non-JSON response`);
+      if (!res.ok || (!trimmed.startsWith("{") && !trimmed.startsWith("["))) {
+        throw new Error(`HTTP ${res.status}: ${trimmed.slice(0, 160)}`);
       }
       return JSON.parse(text);
     } catch (err) {

@@ -16,6 +16,26 @@ async function delay(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));
 }
 
+/** Jolpica rejects the default Node user agent with a plain-text 403. */
+async function jolpicaJson(url: string): Promise<any> {
+  let last = "no response";
+  for (let attempt = 0; attempt < 6; attempt++) {
+    const res = await fetch(url, {
+      headers: { "User-Agent": "undercut.ge", Accept: "application/json" },
+    });
+    const text = await res.text();
+    const trimmed = text.trimStart();
+    if (res.ok && (trimmed.startsWith("{") || trimmed.startsWith("["))) {
+      return JSON.parse(text);
+    }
+    last = `${res.status} ${trimmed.slice(0, 160)}`;
+    const wait = 2000 * (attempt + 1);
+    console.warn(`  Jolpica retry ${attempt + 1}/6 in ${wait}ms (${last})`);
+    await delay(wait);
+  }
+  throw new Error(`Jolpica failed ${url}: ${last}`);
+}
+
 function parseQualifyingTimeToMs(time: string | undefined | null): number | null {
   if (!time) return null;
   const parts = time.split(":");
@@ -82,8 +102,7 @@ export async function upsertConstructorFromApi(constructorData: {
 
 async function seedSeasons(startYear = 1950, endYear = 2026): Promise<void> {
   console.log(`Seeding seasons from ${startYear} to ${endYear}...`);
-  const res = await fetch(`${JOLPICA_BASE}/seasons.json?limit=100&offset=${startYear - 1950}`);
-  const data = await res.json() as any;
+  const data = await jolpicaJson(`${JOLPICA_BASE}/seasons.json?limit=100&offset=${startYear - 1950}`) as any;
   for (const s of data.MRData.SeasonTable.Seasons) {
     const yr = parseInt(s.season);
     if (yr >= startYear && yr <= endYear) {
@@ -98,8 +117,7 @@ async function seedSeasons(startYear = 1950, endYear = 2026): Promise<void> {
 
 async function seedConstructors(): Promise<void> {
   console.log("Seeding constructors...");
-  const res = await fetch(`${JOLPICA_BASE}/constructors.json?limit=1000`);
-  const data = await res.json() as any;
+  const data = await jolpicaJson(`${JOLPICA_BASE}/constructors.json?limit=1000`) as any;
   for (const c of data.MRData.ConstructorTable.Constructors) {
     await prisma.f1_constructors.upsert({
       where: { constructor_ref: c.constructorId },
@@ -119,8 +137,7 @@ async function seedDrivers(): Promise<void> {
   console.log("Seeding drivers...");
   let offset = 0;
   while (true) {
-    const res = await fetch(`${JOLPICA_BASE}/drivers.json?limit=100&offset=${offset}`);
-    const data = await res.json() as any;
+    const data = await jolpicaJson(`${JOLPICA_BASE}/drivers.json?limit=100&offset=${offset}`) as any;
     const drivers = data.MRData.DriverTable.Drivers;
     if (!drivers.length) break;
     for (const d of drivers) {
@@ -147,8 +164,7 @@ async function seedDrivers(): Promise<void> {
 
 async function seedCircuits(): Promise<void> {
   console.log("Seeding circuits...");
-  const res = await fetch(`${JOLPICA_BASE}/circuits.json?limit=100`);
-  const data = await res.json() as any;
+  const data = await jolpicaJson(`${JOLPICA_BASE}/circuits.json?limit=100`) as any;
   for (const c of data.MRData.CircuitTable.Circuits) {
     const isSilverstone = c.circuitId === "silverstone";
     const mapSvgPath = null;
@@ -328,8 +344,7 @@ async function syncRaceSessions(raceId: number, race: JolpicaRacePayload): Promi
 /** Upsert full season calendar (scheduled + completed rounds) from Jolpica. */
 async function seedSeasonCalendar(year: number): Promise<void> {
   console.log(`Seeding season calendar for ${year}...`);
-  const res = await fetch(`${JOLPICA_BASE}/${year}.json`);
-  const data = (await res.json()) as {
+  const data = (await jolpicaJson(`${JOLPICA_BASE}/${year}.json`)) as {
     MRData: { RaceTable: { Races: JolpicaRacePayload[] } };
   };
   const races = data.MRData.RaceTable.Races ?? [];
@@ -348,8 +363,7 @@ async function seedRacesAndResults(year: number): Promise<void> {
 
   while (offset < total) {
     console.log(`Fetching results for ${year} with offset ${offset}...`);
-    const res = await fetch(`${JOLPICA_BASE}/${year}/results.json?limit=${limit}&offset=${offset}`);
-    const data = await res.json() as any;
+    const data = await jolpicaJson(`${JOLPICA_BASE}/${year}/results.json?limit=${limit}&offset=${offset}`) as any;
     
     total = parseInt(data.MRData.total) || 0;
     const races = data.MRData.RaceTable.Races;
@@ -453,8 +467,7 @@ async function seedQualifyingResults(year: number): Promise<void> {
 
   while (offset < total) {
     console.log(`Fetching qualifying for ${year} with offset ${offset}...`);
-    const res = await fetch(`${JOLPICA_BASE}/${year}/qualifying.json?limit=${limit}&offset=${offset}`);
-    const data = await res.json() as any;
+    const data = await jolpicaJson(`${JOLPICA_BASE}/${year}/qualifying.json?limit=${limit}&offset=${offset}`) as any;
 
     total = parseInt(data.MRData.total) || 0;
     const races = data.MRData.RaceTable?.Races;

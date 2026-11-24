@@ -8,6 +8,7 @@ import {
   mapOpenF1Stint,
   mapRaceControl,
   mapWeather,
+  pickOpenF1Session,
   sessionTypesForPoints,
 } from "./session-facts";
 
@@ -210,5 +211,47 @@ describe("mapOpenF1SessionResult", () => {
     expect(mapOpenF1SessionResult({ dnf: true, position: 18, gap_to_leader: 1.25 }).classification).toBe("DNF");
     expect(mapOpenF1SessionResult({ dns: true }).position_text).toBe("W");
     expect(mapOpenF1SessionResult({ dsq: true }).classification).toBe("DSQ");
+  });
+});
+
+describe("pickOpenF1Session", () => {
+  const names: Record<string, string> = { Race: "R", Qualifying: "Q", "Practice 1": "FP1" };
+
+  it("prefers a session inside six hours", () => {
+    const picked = pickOpenF1Session(
+      [
+        { session_key: 1, session_name: "Race", date_start: "2024-11-23T06:00:00+00:00" },
+        { session_key: 2, session_name: "Race", date_start: "2024-11-24T06:00:00+00:00" },
+      ],
+      "R",
+      new Date("2024-11-23T06:00:00Z"),
+      names,
+    );
+    expect(picked?.session_key).toBe(1);
+  });
+
+  it("accepts the Las Vegas local-date skew when the UTC clock matches", () => {
+    const picked = pickOpenF1Session(
+      [
+        { session_key: 9637, session_name: "Practice 1", date_start: "2024-11-22T02:30:00+00:00" },
+        { session_key: 9644, session_name: "Race", date_start: "2024-11-24T06:00:00+00:00" },
+      ],
+      "R",
+      new Date("2024-11-23T06:00:00Z"),
+      names,
+    );
+    expect(picked?.session_key).toBe(9644);
+  });
+
+  it("does not guess when two skewed sessions share the clock", () => {
+    expect(pickOpenF1Session(
+      [
+        { session_key: 1, session_name: "Race", date_start: "2024-11-24T06:00:00+00:00" },
+        { session_key: 2, session_name: "Race", date_start: "2024-11-22T06:00:00+00:00" },
+      ],
+      "R",
+      new Date("2024-11-23T06:00:00Z"),
+      names,
+    )).toBeNull();
   });
 });
