@@ -100,7 +100,7 @@ function sleep(ms: number): Promise<void> {
 async function fetchJson<T>(url: string): Promise<T | null> {
   // OpenF1 historical GET is capped at 30 requests/minute (a 429 says so).
   // 2.1s between successes stays under that. Retry-After is often 60s.
-  for (let attempt = 0; attempt < 12; attempt++) {
+  for (let attempt = 0; attempt < 6; attempt++) {
     const response = await fetch(url, { headers: { "User-Agent": "undercut.ge" } });
     if (response.ok) {
       await sleep(2100);
@@ -730,9 +730,13 @@ async function syncOpenF1Year(year: number, stats: Stats, roundFilter?: number):
     const byType = new Map(race.sessions.map((session) => [session.session_type, session]));
     const raceSession = byType.get("R");
     if (raceSession?.session_key) {
-      const allowed = await sessionDriverIds(race.id, raceSession.id);
-      await syncStints(raceSession.id, raceSession.session_key, resolve, allowed, stats);
-      await syncPits(raceSession.id, raceSession.session_key, resolve, allowed, stats);
+      try {
+        const allowed = await sessionDriverIds(race.id, raceSession.id);
+        await syncStints(raceSession.id, raceSession.session_key, resolve, allowed, stats);
+        await syncPits(raceSession.id, raceSession.session_key, resolve, allowed, stats);
+      } catch (error) {
+        console.log(`  stints/pits failed: ${error instanceof Error ? error.message : error}`);
+      }
     }
 
     let qualiMessages: Array<{ date: string; qualifying_phase: number | null }> = [];
@@ -741,13 +745,17 @@ async function syncOpenF1Year(year: number, stats: Stats, roundFilter?: number):
     for (const type of ["Q", "S", "SQ", "R"] as const) {
       const session = byType.get(type);
       if (!session?.session_key) continue;
-      const allowed = await sessionDriverIds(race.id, session.id);
-      await syncWeather(session.id, session.session_key, stats);
-      const messages = await syncRaceControl(session.id, session.session_key, resolve, allowed, stats);
-      if (type === "Q") qualiMessages = messages;
-      if (type === "Q" || type === "S" || type === "R") {
-        const laps = await syncLaps(session.id, session.session_key, resolve, allowed, stats);
-        if (type === "Q") qualiLaps = laps;
+      try {
+        const allowed = await sessionDriverIds(race.id, session.id);
+        await syncWeather(session.id, session.session_key, stats);
+        const messages = await syncRaceControl(session.id, session.session_key, resolve, allowed, stats);
+        if (type === "Q") qualiMessages = messages;
+        if (type === "Q" || type === "S" || type === "R") {
+          const laps = await syncLaps(session.id, session.session_key, resolve, allowed, stats);
+          if (type === "Q") qualiLaps = laps;
+        }
+      } catch (error) {
+        console.log(`  ${type} facts failed: ${error instanceof Error ? error.message : error}`);
       }
     }
 
@@ -759,15 +767,23 @@ async function syncOpenF1Year(year: number, stats: Stats, roundFilter?: number):
 
     const sprintQuali = byType.get("SQ");
     if (sprintQuali?.session_key) {
-      const allowed = await sessionDriverIds(race.id, sprintQuali.id);
-      await syncSessionResult(race.id, sprintQuali.id, sprintQuali.session_key, resolve, allowed, "sq", stats);
+      try {
+        const allowed = await sessionDriverIds(race.id, sprintQuali.id);
+        await syncSessionResult(race.id, sprintQuali.id, sprintQuali.session_key, resolve, allowed, "sq", stats);
+      } catch (error) {
+        console.log(`  sprint quali failed: ${error instanceof Error ? error.message : error}`);
+      }
     }
 
     for (const type of ["FP1", "FP2", "FP3"]) {
       const session = byType.get(type);
       if (!session?.session_key) continue;
-      const allowed = await sessionDriverIds(race.id, session.id);
-      await syncSessionResult(race.id, session.id, session.session_key, resolve, allowed, "practice", stats);
+      try {
+        const allowed = await sessionDriverIds(race.id, session.id);
+        await syncSessionResult(race.id, session.id, session.session_key, resolve, allowed, "practice", stats);
+      } catch (error) {
+        console.log(`  ${type} results failed: ${error instanceof Error ? error.message : error}`);
+      }
     }
   }
 }
