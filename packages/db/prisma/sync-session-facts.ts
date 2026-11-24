@@ -98,10 +98,12 @@ function sleep(ms: number): Promise<void> {
 }
 
 async function fetchJson<T>(url: string): Promise<T | null> {
-  for (let attempt = 0; attempt < 8; attempt++) {
+  // OpenF1 historical GET is capped at 30 requests/minute (a 429 says so).
+  // 2.1s between successes stays under that. Retry-After is often 60s.
+  for (let attempt = 0; attempt < 12; attempt++) {
     const response = await fetch(url, { headers: { "User-Agent": "undercut.ge" } });
     if (response.ok) {
-      await sleep(350);
+      await sleep(2100);
       return response.json() as Promise<T>;
     }
     if (response.status === 404 || response.status === 400) {
